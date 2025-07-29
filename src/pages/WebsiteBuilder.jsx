@@ -4,6 +4,7 @@ import { useApp } from '../contexts/AppContext'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
+import { websiteService } from '../services/websiteService'
 import { homepageTemplates, getTemplateById, getDefaultTemplateContent } from '../utils/templates'
 import { 
   Save, 
@@ -127,9 +128,13 @@ function WebsiteBuilder() {
   const loadWebsiteData = async () => {
     setLoading(true)
     try {
-      // Load existing website data from localStorage
-      const userWebsites = JSON.parse(localStorage.getItem('userWebsites') || '[]')
-      const existingWebsite = userWebsites.find(site => site.id === websiteId)
+      // Load existing website data from API
+      const websitesResult = await websiteService.getWebsites()
+      if (!websitesResult.success) {
+        throw new Error(websitesResult.error)
+      }
+      
+      const existingWebsite = websitesResult.data.find(site => site.id.toString() === websiteId)
       
       if (!existingWebsite) {
         dispatch({ type: 'SET_ERROR', payload: 'Website not found' })
@@ -137,7 +142,41 @@ function WebsiteBuilder() {
         return
       }
 
-      setWebsiteData(existingWebsite)
+      // Map API data to frontend format
+      const mappedWebsite = {
+        ...existingWebsite,
+        template: {
+          id: existingWebsite.template_id || '',
+          name: existingWebsite.template_name || '',
+          metadata: existingWebsite.template_metadata || {}
+        },
+        templateContent: {
+          heroTitle: existingWebsite.heroTitle || '',
+          heroDescription: existingWebsite.heroDescription || '',
+          heroImage: existingWebsite.heroImage || '',
+          heroButtonText: existingWebsite.heroButtonText || '',
+          productSectionTitle: existingWebsite.productSectionTitle || '',
+          blogSectionTitle: existingWebsite.blogSectionTitle || '',
+          services: existingWebsite.services || [''],
+          contentBlocks: existingWebsite.contentBlocks || []
+        },
+        aboutContent: {
+          companyStory: existingWebsite.companyStory || '',
+          whyCreated: existingWebsite.whyCreated || '',
+          mission: existingWebsite.mission || '',
+          vision: existingWebsite.vision || '',
+          features: existingWebsite.features || [''],
+          teamInfo: existingWebsite.teamInfo || '',
+          contactInfo: existingWebsite.contactInfo || { email: '', phone: '', address: '' }
+        },
+        seo: {
+          title: existingWebsite.seoTitle || '',
+          description: existingWebsite.seoDescription || '',
+          keywords: existingWebsite.seoKeywords || ''
+        }
+      }
+
+      setWebsiteData(mappedWebsite)
       setCurrentStep(1) // Start from step 1 for editing
     } catch (error) {
       dispatch({ type: 'SET_ERROR', payload: 'Failed to load website data' })
@@ -174,25 +213,59 @@ function WebsiteBuilder() {
   const handleSave = async (publish = false) => {
     setSaving(true)
     try {
+      // Map frontend data to API format
       const saveData = {
-        ...websiteData,
-        id: websiteId || Date.now().toString(),
-        status: publish ? 'published' : 'draft',
-        createdAt: websiteData.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        name: websiteData.name,
+        slug: websiteData.slug,
+        description: websiteData.description,
+        category: websiteData.category,
+        logoUrl: websiteData.logoUrl || '',
+        
+        // Template information
+        template_id: websiteData.template.id,
+        template_name: websiteData.template.name,
+        template_metadata: websiteData.template.metadata,
+        
+        // Template content
+        heroTitle: websiteData.templateContent.heroTitle || '',
+        heroDescription: websiteData.templateContent.heroDescription || '',
+        heroImage: websiteData.templateContent.heroImage || '',
+        heroButtonText: websiteData.templateContent.heroButtonText || '',
+        productSectionTitle: websiteData.templateContent.productSectionTitle || '',
+        blogSectionTitle: websiteData.templateContent.blogSectionTitle || '',
+        services: websiteData.templateContent.services || [],
+        contentBlocks: websiteData.templateContent.contentBlocks || [],
+        
+        // Theme and customizations
+        theme: websiteData.customizations,
+        customizations: websiteData.customizations,
+        
+        // About content
+        companyStory: websiteData.aboutContent.companyStory || '',
+        whyCreated: websiteData.aboutContent.whyCreated || '',
+        mission: websiteData.aboutContent.mission || '',
+        vision: websiteData.aboutContent.vision || '',
+        features: websiteData.aboutContent.features || [],
+        teamInfo: websiteData.aboutContent.teamInfo || [],
+        contactInfo: websiteData.aboutContent.contactInfo || {},
+        
+        // SEO
+        seoTitle: websiteData.seo.title || '',
+        seoDescription: websiteData.seo.description || '',
+        seoKeywords: websiteData.seo.keywords || '',
+        
+        status: publish ? 'published' : 'draft'
       }
 
-      // Save to localStorage
-      const existingWebsites = JSON.parse(localStorage.getItem('userWebsites') || '[]')
-      
+      let result
       if (isEditing) {
-        const updatedWebsites = existingWebsites.map(site => 
-          site.id === websiteId ? saveData : site
-        )
-        localStorage.setItem('userWebsites', JSON.stringify(updatedWebsites))
+        result = await websiteService.updateWebsite(websiteId, saveData)
       } else {
-        existingWebsites.push(saveData)
-        localStorage.setItem('userWebsites', JSON.stringify(existingWebsites))
+        result = await websiteService.createWebsite(saveData)
+      }
+      
+      if (!result.success) {
+        throw new Error(result.error)
       }
       
       dispatch({ type: 'SET_ERROR', payload: null })

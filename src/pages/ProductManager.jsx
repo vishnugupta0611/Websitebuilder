@@ -4,6 +4,8 @@ import { useApp } from '../contexts/AppContext'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
+import { websiteService } from '../services/websiteService'
+import { productService } from '../services/productService'
 import { 
   Save, 
   Eye, 
@@ -71,18 +73,35 @@ function ProductManager() {
     try {
       setLoading(true)
       
-      // Load user websites from localStorage
-      const userWebsites = JSON.parse(localStorage.getItem('userWebsites') || '[]')
-      const publishedWebsites = userWebsites.filter(site => site.status === 'published')
-      setWebsites(publishedWebsites)
+      // Load user websites from API
+      const websitesResult = await websiteService.getWebsites()
+      if (websitesResult.success) {
+        const publishedWebsites = websitesResult.data.filter(site => site.status === 'published')
+        setWebsites(publishedWebsites)
+      }
 
       // Load existing product if editing
       if (isEditing) {
-        const userProducts = JSON.parse(localStorage.getItem('userProducts') || '[]')
-        const existingProduct = userProducts.find(product => product.id === productId)
+        const productResult = await productService.getProduct(productId)
         
-        if (existingProduct) {
-          setProductData(existingProduct)
+        if (productResult.success) {
+          // Map API data to frontend format
+          const product = productResult.data
+          const mappedProduct = {
+            ...product,
+            websiteId: product.website,
+            seo: {
+              title: product.seoTitle || '',
+              description: product.seoDescription || '',
+              keywords: product.seoKeywords || ''
+            },
+            dimensions: {
+              length: product.length || '',
+              width: product.width || '',
+              height: product.height || ''
+            }
+          }
+          setProductData(mappedProduct)
         } else {
           dispatch({ type: 'SET_ERROR', payload: 'Product not found' })
           navigate('/my-products')
@@ -138,35 +157,42 @@ function ProductManager() {
   const handleSave = async (publish = false) => {
     setSaving(true)
     try {
+      // Map frontend data to API format
       const saveData = {
-        ...productData,
-        id: productData.id || `product_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        status: publish ? 'published' : 'draft',
+        name: productData.name,
+        slug: productData.slug,
+        description: productData.description,
+        shortDescription: productData.shortDescription,
         price: parseFloat(productData.price),
         originalPrice: productData.originalPrice ? parseFloat(productData.originalPrice) : null,
+        category: productData.category,
+        website: productData.websiteId,
         inventory: parseInt(productData.inventory),
+        sku: productData.sku,
         weight: parseFloat(productData.weight) || null,
-        createdAt: productData.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        length: parseFloat(productData.dimensions.length) || null,
+        width: parseFloat(productData.dimensions.width) || null,
+        height: parseFloat(productData.dimensions.height) || null,
+        images: productData.images,
+        variants: productData.variants,
+        seoTitle: productData.seo.title,
+        seoDescription: productData.seo.description,
+        seoKeywords: productData.seo.keywords,
+        status: publish ? 'active' : 'inactive'
       }
 
-      // Save to localStorage
-      const existingProducts = JSON.parse(localStorage.getItem('userProducts') || '[]')
-      
+      let result
       if (isEditing) {
-        // Update existing product
-        const updatedProducts = existingProducts.map(product => 
-          product.id === productData.id ? saveData : product
-        )
-        localStorage.setItem('userProducts', JSON.stringify(updatedProducts))
+        result = await productService.updateProduct(productId, saveData)
       } else {
-        // Add new product
-        existingProducts.push(saveData)
-        localStorage.setItem('userProducts', JSON.stringify(existingProducts))
+        result = await productService.createProduct(saveData)
+      }
+      
+      if (!result.success) {
+        throw new Error(result.error)
       }
       
       dispatch({ type: 'SET_ERROR', payload: null })
-      dispatch({ type: 'SET_SUCCESS', payload: `Product ${isEditing ? 'updated' : 'created'} successfully!` })
       navigate('/my-products')
     } catch (error) {
       console.error('Error saving product:', error)

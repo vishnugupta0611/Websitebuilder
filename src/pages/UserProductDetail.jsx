@@ -3,6 +3,8 @@ import { useParams, Link } from 'react-router-dom'
 import { useApp } from '../contexts/AppContext'
 import Button from '../components/ui/Button'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
+import { websiteService } from '../services/websiteService'
+import { productService } from '../services/productService'
 import {
     ArrowLeft,
     Star,
@@ -34,39 +36,68 @@ function UserProductDetail() {
         try {
             setLoading(true)
 
-            // Load website data from localStorage
-            const userWebsites = JSON.parse(localStorage.getItem('userWebsites') || '[]')
-            const websiteData = userWebsites.find(site => site.slug === slug && site.status === 'published')
-
-            if (!websiteData) {
+            // Load website data from API
+            const websiteResult = await websiteService.getWebsiteBySlug(slug)
+            
+            if (!websiteResult.success) {
                 dispatch({ type: 'SET_ERROR', payload: 'Website not found' })
                 setLoading(false)
                 return
             }
 
-            // Load product data from localStorage
-            const userProducts = JSON.parse(localStorage.getItem('userProducts') || '[]')
-            const productData = userProducts.find(product => 
-                (product.id === productId || product.slug === productId) && 
-                product.websiteId === websiteData.id && 
-                product.status === 'published'
-            )
+            const websiteData = websiteResult.data
 
-            if (!productData) {
+            // Only show published websites
+            if (websiteData.status !== 'published') {
+                dispatch({ type: 'SET_ERROR', payload: 'Website not found' })
+                setLoading(false)
+                return
+            }
+
+            // Load product data from API
+            const productResult = await productService.getProduct(productId)
+            
+            if (!productResult.success) {
                 dispatch({ type: 'SET_ERROR', payload: 'Product not found' })
                 setLoading(false)
                 return
             }
 
+            const productData = productResult.data
+
+            // Check if product belongs to this website and is active
+            if (productData.website !== websiteData.id || productData.status !== 'active') {
+                dispatch({ type: 'SET_ERROR', payload: 'Product not found' })
+                setLoading(false)
+                return
+            }
+
+            // Add mock data for missing fields
+            const enhancedProduct = {
+                ...productData,
+                rating: 4.5, // Mock rating
+                reviews: [], // Mock reviews
+                features: productData.description ? productData.description.split('.').filter(f => f.trim()).slice(0, 5) : [],
+                specifications: {
+                    'Weight': productData.weight ? `${productData.weight} kg` : 'N/A',
+                    'Dimensions': productData.length && productData.width && productData.height 
+                        ? `${productData.length} x ${productData.width} x ${productData.height} cm` 
+                        : 'N/A',
+                    'SKU': productData.sku,
+                    'Category': productData.category
+                },
+                totalInventory: productData.inventory
+            }
+
             setWebsite(websiteData)
-            setProduct(productData)
+            setProduct(enhancedProduct)
             
             // Set default selected image and variant
-            if (productData.images && productData.images.length > 0) {
+            if (enhancedProduct.images && enhancedProduct.images.length > 0) {
                 setSelectedImage(0)
             }
-            if (productData.variants && productData.variants.length > 0) {
-                setSelectedVariant(productData.variants[0])
+            if (enhancedProduct.variants && enhancedProduct.variants.length > 0) {
+                setSelectedVariant(enhancedProduct.variants[0])
             }
         } catch (error) {
             dispatch({ type: 'SET_ERROR', payload: 'Product not found' })

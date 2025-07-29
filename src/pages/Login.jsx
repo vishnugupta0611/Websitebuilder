@@ -26,7 +26,7 @@ function Login() {
   // Clear error when component mounts
   useEffect(() => {
     clearError()
-  }, [clearError])
+  }, []) // Remove clearError from dependencies to prevent infinite loop
 
   const handleSubmit = async (e) => {
     e.preventDefault()

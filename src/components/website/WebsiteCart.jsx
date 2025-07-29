@@ -3,11 +3,11 @@ import { Link } from 'react-router-dom'
 import { useWebsiteCart } from '../../contexts/WebsiteCartContext'
 import Button from '../ui/Button'
 import Input from '../ui/Input'
-import { 
-  ShoppingCart, 
-  Plus, 
-  Minus, 
-  Trash2, 
+import {
+  ShoppingCart,
+  Plus,
+  Minus,
+  Trash2,
   ArrowLeft,
   CreditCard,
   User,
@@ -18,6 +18,8 @@ import {
 
 function WebsiteCart({ website }) {
   const { cart, updateQuantity, removeFromCart, checkout } = useWebsiteCart()
+
+  // All useState hooks must be called before any conditional returns
   const [showCheckout, setShowCheckout] = useState(false)
   const [customerInfo, setCustomerInfo] = useState({
     name: '',
@@ -29,13 +31,55 @@ function WebsiteCart({ website }) {
   })
   const [orderPlaced, setOrderPlaced] = useState(false)
 
+  // Debug logging
+  console.log('WebsiteCart rendered:', {
+    website: website?.name,
+    cartItems: cart?.items?.length || 0,
+    cartTotal: cart?.total || 0,
+    cartLoading: cart?.loading
+  })
+
+  // Show loading state while cart is loading
+  if (cart.loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <header className="bg-white shadow-sm border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <Link
+                to={`/${website.slug}`}
+                className="flex items-center hover:opacity-75 transition-opacity"
+                style={{ color: website.customizations.colors.primary }}
+              >
+                <h1
+                  className="text-2xl font-bold"
+                  style={{ fontFamily: website.customizations.typography.headingFont }}
+                >
+                  {website.name}
+                </h1>
+              </Link>
+            </div>
+          </div>
+        </header>
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <div className="flex justify-center items-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading your cart...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const handleCheckout = async (e) => {
     e.preventDefault()
     try {
       const order = await checkout(customerInfo)
       setOrderPlaced(true)
       setShowCheckout(false)
-      
+
       // Reset form
       setCustomerInfo({
         name: '',
@@ -136,7 +180,7 @@ function WebsiteCart({ website }) {
             {/* Customer Information */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-6">Customer Information</h2>
-              
+
               <form onSubmit={handleCheckout} className="space-y-4">
                 <Input
                   label="Full Name"
@@ -145,7 +189,7 @@ function WebsiteCart({ website }) {
                   required
                   icon={<User className="h-5 w-5 text-gray-400" />}
                 />
-                
+
                 <Input
                   label="Email"
                   type="email"
@@ -154,7 +198,7 @@ function WebsiteCart({ website }) {
                   required
                   icon={<Mail className="h-5 w-5 text-gray-400" />}
                 />
-                
+
                 <Input
                   label="Phone"
                   value={customerInfo.phone}
@@ -162,7 +206,7 @@ function WebsiteCart({ website }) {
                   required
                   icon={<Phone className="h-5 w-5 text-gray-400" />}
                 />
-                
+
                 <Input
                   label="Address"
                   value={customerInfo.address}
@@ -170,7 +214,7 @@ function WebsiteCart({ website }) {
                   required
                   icon={<MapPin className="h-5 w-5 text-gray-400" />}
                 />
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <Input
                     label="City"
@@ -202,21 +246,21 @@ function WebsiteCart({ website }) {
             {/* Order Summary */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-6">Order Summary</h2>
-              
+
               <div className="space-y-4">
                 {cart.items.map((item) => (
-                  <div key={item.id} className="flex items-center space-x-4">
+                  <div key={item.product_id || item.id} className="flex items-center space-x-4">
                     <img
-                      src={item.images[0]}
-                      alt={item.name}
+                      src={item.product_image || item.images?.[0] || 'https://via.placeholder.com/64x64/gray/white?text=Product'}
+                      alt={item.product_name || item.name}
                       className="w-16 h-16 object-cover rounded"
                     />
                     <div className="flex-1">
-                      <h3 className="font-medium text-gray-900">{item.name}</h3>
+                      <h3 className="font-medium text-gray-900">{item.product_name || item.name}</h3>
                       <p className="text-gray-600">Qty: {item.quantity}</p>
                     </div>
                     <p className="font-medium text-gray-900">
-                      ${(item.price * item.quantity).toFixed(2)}
+                      ${(parseFloat(item.product_price || item.price || 0) * item.quantity).toFixed(2)}
                     </p>
                   </div>
                 ))}
@@ -255,7 +299,7 @@ function WebsiteCart({ website }) {
                 {website.name}
               </h1>
             </Link>
-            
+
             <Link
               to={`/${website.slug}`}
               className="flex items-center text-gray-600 hover:text-gray-900"
@@ -271,7 +315,7 @@ function WebsiteCart({ website }) {
       <div className="max-w-4xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Shopping Cart</h1>
 
-        {cart.items.length === 0 ? (
+        {(!cart.items || cart.items.length === 0) ? (
           <div className="bg-white rounded-lg shadow-sm border p-8 text-center">
             <ShoppingCart className="h-16 w-16 text-gray-300 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Your cart is empty</h2>
@@ -292,29 +336,29 @@ function WebsiteCart({ website }) {
             {/* Cart Items */}
             <div className="lg:col-span-2 space-y-4">
               {cart.items.map((item) => (
-                <div key={item.id} className="bg-white rounded-lg shadow-sm border p-6">
+                <div key={item.product_id || item.id} className="bg-white rounded-lg shadow-sm border p-6">
                   <div className="flex items-center space-x-4">
                     <img
-                      src={item.images[0]}
-                      alt={item.name}
+                      src={item.product_image || item.images?.[0] || 'https://via.placeholder.com/80x80/gray/white?text=Product'}
+                      alt={item.product_name || item.name}
                       className="w-20 h-20 object-cover rounded"
                     />
-                    
+
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900">{item.name}</h3>
-                      <p className="text-gray-600">${item.price.toFixed(2)} each</p>
+                      <h3 className="text-lg font-semibold text-gray-900">{item.product_name || item.name}</h3>
+                      <p className="text-gray-600">${parseFloat(item.product_price || item.price || 0).toFixed(2)} each</p>
                     </div>
 
                     <div className="flex items-center space-x-2">
                       <button
-                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                        onClick={() => updateQuantity(item.product_id || item.id, item.quantity - 1)}
                         className="p-1 rounded-full hover:bg-gray-100"
                       >
                         <Minus className="h-4 w-4" />
                       </button>
                       <span className="w-8 text-center">{item.quantity}</span>
                       <button
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                        onClick={() => updateQuantity(item.product_id || item.id, item.quantity + 1)}
                         className="p-1 rounded-full hover:bg-gray-100"
                       >
                         <Plus className="h-4 w-4" />
@@ -323,10 +367,10 @@ function WebsiteCart({ website }) {
 
                     <div className="text-right">
                       <p className="text-lg font-semibold text-gray-900">
-                        ${(item.price * item.quantity).toFixed(2)}
+                        ${(parseFloat(item.product_price || item.price || 0) * item.quantity).toFixed(2)}
                       </p>
                       <button
-                        onClick={() => removeFromCart(item.id)}
+                        onClick={() => removeFromCart(item.product_id || item.id)}
                         className="text-red-600 hover:text-red-700 mt-2"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -340,7 +384,7 @@ function WebsiteCart({ website }) {
             {/* Cart Summary */}
             <div className="bg-white rounded-lg shadow-sm border p-6 h-fit">
               <h2 className="text-xl font-bold text-gray-900 mb-4">Order Summary</h2>
-              
+
               <div className="space-y-2 mb-4">
                 <div className="flex justify-between">
                   <span>Subtotal:</span>
@@ -376,4 +420,4 @@ function WebsiteCart({ website }) {
   )
 }
 
-export default WebsiteCart
+export default WebsiteCart;

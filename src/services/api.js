@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
 
 class ApiService {
   constructor() {
@@ -23,14 +23,21 @@ class ApiService {
 
     try {
       const response = await fetch(url, config)
+      const data = await response.json()
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        // Extract error message from response
+        const errorMessage = data.error || data.message || data.detail || 
+                           (typeof data === 'object' ? JSON.stringify(data) : data) ||
+                           `HTTP error! status: ${response.status}`
+        throw new Error(errorMessage)
       }
       
-      return await response.json()
+      return data
     } catch (error) {
       console.error('API request failed:', error)
+      console.error('Request URL:', url)
+      console.error('Request config:', config)
       throw error
     }
   }

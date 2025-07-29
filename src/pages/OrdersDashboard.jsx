@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import Button from '../components/ui/Button'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
-import { 
-  Package, 
-  TrendingUp, 
-  DollarSign, 
-  Users, 
+import { websiteService } from '../services/websiteService'
+import { orderService } from '../services/orderService'
+import {
+  Package,
+  TrendingUp,
+  DollarSign,
+  Users,
   Eye,
   Filter,
   Download,
@@ -34,15 +36,18 @@ function OrdersDashboard() {
   const loadData = async () => {
     try {
       setLoading(true)
-      
-      // Load orders from localStorage
-      const websiteOrders = JSON.parse(localStorage.getItem('websiteOrders') || '[]')
-      
-      // Load user websites
-      const userWebsites = JSON.parse(localStorage.getItem('userWebsites') || '[]')
-      
-      setOrders(websiteOrders)
-      setWebsites(userWebsites)
+
+      // Load orders from API
+      const ordersResult = await orderService.getOrders()
+      if (ordersResult.success) {
+        setOrders(ordersResult.data)
+      }
+
+      // Load user websites from API
+      const websitesResult = await websiteService.getWebsites()
+      if (websitesResult.success) {
+        setWebsites(websitesResult.data)
+      }
     } catch (error) {
       console.error('Error loading orders:', error)
     } finally {
@@ -54,16 +59,16 @@ function OrdersDashboard() {
   const filteredOrders = orders.filter(order => {
     const matchesWebsite = selectedWebsite === 'all' || order.websiteSlug === selectedWebsite
     const matchesStatus = selectedStatus === 'all' || order.status === selectedStatus
-    const matchesSearch = searchQuery === '' || 
-      order.customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.id.includes(searchQuery)
-    
+    const matchesSearch = searchQuery === '' ||
+      order.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.customerEmail?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.id.toString().includes(searchQuery)
+
     let matchesDate = true
     if (dateRange !== 'all') {
       const orderDate = new Date(order.createdAt)
       const now = new Date()
-      
+
       switch (dateRange) {
         case 'today':
           matchesDate = orderDate.toDateString() === now.toDateString()
@@ -78,7 +83,7 @@ function OrdersDashboard() {
           break
       }
     }
-    
+
     return matchesWebsite && matchesStatus && matchesSearch && matchesDate
   })
 
@@ -336,8 +341,8 @@ function OrdersDashboard() {
                         <div className="text-sm text-gray-500">/{order.websiteSlug}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{order.customer.name}</div>
-                        <div className="text-sm text-gray-500">{order.customer.email}</div>
+                        <div className="text-sm font-medium text-gray-900">{order.customerName}</div>
+                        <div className="text-sm text-gray-500">{order.customerEmail}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">{order.items.length} items</div>

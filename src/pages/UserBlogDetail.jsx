@@ -3,6 +3,8 @@ import { useParams, Link } from 'react-router-dom'
 import { useApp } from '../contexts/AppContext'
 import Button from '../components/ui/Button'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
+import { websiteService } from '../services/websiteService'
+import { blogService } from '../services/blogService'
 import {
     ArrowLeft,
     Calendar,
@@ -32,21 +34,34 @@ function UserBlogDetail() {
         try {
             setLoading(true)
 
-            // Load website data from localStorage
-            const userWebsites = JSON.parse(localStorage.getItem('userWebsites') || '[]')
-            const websiteData = userWebsites.find(site => site.slug === slug && site.status === 'published')
-
-            if (!websiteData) {
+            // Load website data from API
+            const websiteResult = await websiteService.getWebsiteBySlug(slug)
+            
+            if (!websiteResult.success) {
                 dispatch({ type: 'SET_ERROR', payload: 'Website not found' })
                 setLoading(false)
                 return
             }
 
-            // Load blogs for this website from localStorage
-            const userBlogs = JSON.parse(localStorage.getItem('userBlogs') || '[]')
-            const websiteBlogs = userBlogs.filter(blog =>
-                blog.websiteId === websiteData.id && blog.status === 'published'
-            )
+            const websiteData = websiteResult.data
+
+            // Only show published websites
+            if (websiteData.status !== 'published') {
+                dispatch({ type: 'SET_ERROR', payload: 'Website not found' })
+                setLoading(false)
+                return
+            }
+
+            // Load blogs for this website from API
+            const blogsResult = await blogService.getBlogsByWebsiteSlug(slug)
+            
+            if (!blogsResult.success) {
+                dispatch({ type: 'SET_ERROR', payload: 'Failed to load blogs' })
+                setLoading(false)
+                return
+            }
+
+            const websiteBlogs = blogsResult.data
 
             // Find the specific blog
             const currentBlog = websiteBlogs.find(blog => blog.slug === blogSlug)
@@ -60,7 +75,7 @@ function UserBlogDetail() {
             // Get related blogs (same tags or recent posts)
             const related = websiteBlogs
                 .filter(b => b.id !== currentBlog.id)
-                .filter(b => b.tags.some(tag => currentBlog.tags.includes(tag)))
+                .filter(b => b.tags && currentBlog.tags && b.tags.some(tag => currentBlog.tags.includes(tag)))
                 .slice(0, 3)
 
             if (related.length < 3) {

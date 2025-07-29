@@ -14,10 +14,35 @@ import {
   MapPin,
   ShoppingCart
 } from 'lucide-react'
+import { WebsiteCartProvider, useWebsiteCart } from '../contexts/WebsiteCartContext'
 
-function UserAbout() {
+// Cart Icon Component
+function WebsiteCartIcon({ website, slug }) {
+  const { cart } = useWebsiteCart()
+  
+  return (
+    <Link
+      to={`/${slug}/cart`}
+      className="relative p-2 hover:opacity-75 transition-opacity mr-4"
+      style={{ color: website.customizations.colors.primary }}
+    >
+      <ShoppingCart className="h-6 w-6" />
+      {cart.items.length > 0 && (
+        <span
+          className="absolute -top-1 -right-1 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
+          style={{ backgroundColor: website.customizations.colors.accent }}
+        >
+          {cart.items.reduce((total, item) => total + item.quantity, 0)}
+        </span>
+      )}
+    </Link>
+  )
+}
+
+function UserAboutContent() {
   const { slug } = useParams()
   const { state, dispatch } = useApp()
+  const { setWebsiteInfo } = useWebsiteCart()
   const [website, setWebsite] = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -29,19 +54,36 @@ function UserAbout() {
     try {
       setLoading(true)
       
-      // Load website data from localStorage
-      const userWebsites = JSON.parse(localStorage.getItem('userWebsites') || '[]')
-      const websiteData = userWebsites.find(site => site.slug === slug && site.status === 'published')
+      // Load website data from API
+      const { websiteService } = await import('../services/websiteService')
+      const result = await websiteService.getWebsiteBySlug(slug)
       
-      if (!websiteData) {
+      if (!result.success) {
+        dispatch({ type: 'SET_ERROR', payload: 'Website not found' })
+        setLoading(false)
+        return
+      }
+
+      const websiteData = result.data
+
+      // Only show published websites
+      if (websiteData.status !== 'published') {
         dispatch({ type: 'SET_ERROR', payload: 'Website not found' })
         setLoading(false)
         return
       }
 
       setWebsite(websiteData)
+
+      // Set website info in cart context
+      setWebsiteInfo({
+        slug: websiteData.slug,
+        id: websiteData.id,
+        name: websiteData.name
+      })
     } catch (error) {
-      dispatch({ type: 'SET_ERROR', payload: 'Website not found' })
+      console.error('Error loading website:', error)
+      dispatch({ type: 'SET_ERROR', payload: 'Failed to load website' })
     } finally {
       setLoading(false)
     }
@@ -132,17 +174,20 @@ function UserAbout() {
               </Link>
             </nav>
 
-            <Button
-              as={Link}
-              to={`/${slug}/getstarted`}
-              style={{
-                backgroundColor: website.customizations.colors.primary,
-                color: 'white'
-              }}
-              className="hover:opacity-90 transition-opacity"
-            >
-              Get Started
-            </Button>
+            <div className="flex items-center space-x-4">
+              <WebsiteCartIcon website={website} slug={slug} />
+              <Button
+                as={Link}
+                to={`/${slug}/getstarted`}
+                style={{
+                  backgroundColor: website.customizations.colors.primary,
+                  color: 'white'
+                }}
+                className="hover:opacity-90 transition-opacity"
+              >
+                Get Started
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -180,7 +225,7 @@ function UserAbout() {
         </div>
 
         {/* Company Story */}
-        {website.aboutContent?.companyStory && (
+        {website.companyStory && (
           <section className="mb-16">
             <div className="bg-white rounded-lg shadow-sm border p-8" style={{ borderColor: website.customizations.colors.secondary + '30' }}>
               <div className="flex items-center mb-6">
@@ -204,14 +249,14 @@ function UserAbout() {
                 className="text-lg leading-relaxed"
                 style={{ color: website.customizations.colors.text }}
               >
-                {website.aboutContent.companyStory}
+                {website.companyStory}
               </p>
             </div>
           </section>
         )}
 
         {/* Why We Created This Business */}
-        {website.aboutContent?.whyCreated && (
+        {website.whyCreated && (
           <section className="mb-16">
             <div className="bg-white rounded-lg shadow-sm border p-8" style={{ borderColor: website.customizations.colors.secondary + '30' }}>
               <div className="flex items-center mb-6">
@@ -235,18 +280,18 @@ function UserAbout() {
                 className="text-lg leading-relaxed"
                 style={{ color: website.customizations.colors.text }}
               >
-                {website.aboutContent.whyCreated}
+                {website.whyCreated}
               </p>
             </div>
           </section>
         )}
 
         {/* Mission & Vision */}
-        {(website.aboutContent?.mission || website.aboutContent?.vision) && (
+        {(website.mission || website.vision) && (
           <section className="mb-16">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Mission */}
-              {website.aboutContent?.mission && (
+              {website.mission && (
                 <div className="bg-white rounded-lg shadow-sm border p-8" style={{ borderColor: website.customizations.colors.secondary + '30' }}>
                   <div className="flex items-center mb-6">
                     <div 
@@ -269,13 +314,13 @@ function UserAbout() {
                     className="leading-relaxed"
                     style={{ color: website.customizations.colors.text }}
                   >
-                    {website.aboutContent.mission}
+                    {website.mission}
                   </p>
                 </div>
               )}
 
               {/* Vision */}
-              {website.aboutContent?.vision && (
+              {website.vision && (
                 <div className="bg-white rounded-lg shadow-sm border p-8" style={{ borderColor: website.customizations.colors.secondary + '30' }}>
                   <div className="flex items-center mb-6">
                     <div 
@@ -298,7 +343,7 @@ function UserAbout() {
                     className="leading-relaxed"
                     style={{ color: website.customizations.colors.text }}
                   >
-                    {website.aboutContent.vision}
+                    {website.vision}
                   </p>
                 </div>
               )}
@@ -307,7 +352,7 @@ function UserAbout() {
         )}
 
         {/* Features & Services */}
-        {website.aboutContent?.features && website.aboutContent.features.length > 0 && website.aboutContent.features[0] && (
+        {website.features && website.features.length > 0 && website.features[0] && (
           <section className="mb-16">
             <div className="bg-white rounded-lg shadow-sm border p-8" style={{ borderColor: website.customizations.colors.secondary + '30' }}>
               <h2 
@@ -320,7 +365,7 @@ function UserAbout() {
                 What We Offer
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {website.aboutContent.features.filter(feature => feature.trim()).map((feature, index) => (
+                {website.features.filter(feature => feature.trim()).map((feature, index) => (
                   <div key={index} className="flex items-start space-x-3">
                     <div 
                       className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-1"
@@ -342,7 +387,7 @@ function UserAbout() {
         )}
 
         {/* Team Information */}
-        {website.aboutContent?.teamInfo && (
+        {website.teamInfo && (
           <section className="mb-16">
             <div className="bg-white rounded-lg shadow-sm border p-8" style={{ borderColor: website.customizations.colors.secondary + '30' }}>
               <div className="flex items-center mb-6">
@@ -366,14 +411,14 @@ function UserAbout() {
                 className="text-lg leading-relaxed"
                 style={{ color: website.customizations.colors.text }}
               >
-                {website.aboutContent.teamInfo}
+                {website.teamInfo}
               </p>
             </div>
           </section>
         )}
 
         {/* Contact Information Preview */}
-        {website.aboutContent?.contactInfo && (
+        {website.contactInfo && (
           <section className="mb-16">
             <div 
               className="rounded-lg p-8 text-center"
@@ -424,6 +469,17 @@ function UserAbout() {
         </div>
       </footer>
     </div>
+  )
+}
+
+// Main UserAbout component with cart provider
+function UserAbout() {
+  const { slug } = useParams()
+  
+  return (
+    <WebsiteCartProvider websiteSlug={slug}>
+      <UserAboutContent />
+    </WebsiteCartProvider>
   )
 }
 

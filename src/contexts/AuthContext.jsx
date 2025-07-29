@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react'
+import { authService } from '../services/authService'
 
 const AuthContext = createContext()
 
@@ -51,19 +52,23 @@ export function AuthProvider({ children }) {
 
   // Check for existing user session on app load
   useEffect(() => {
-    const checkAuthStatus = () => {
+    const checkAuthStatus = async () => {
       try {
-        const userData = localStorage.getItem('currentUser')
-        const authToken = localStorage.getItem('authToken')
-        
-        if (userData && authToken) {
-          const user = JSON.parse(userData)
-          dispatch({ type: 'LOGIN_SUCCESS', payload: user })
+        if (authService.isAuthenticated()) {
+          const result = await authService.getProfile()
+          if (result.success) {
+            dispatch({ type: 'LOGIN_SUCCESS', payload: result.data })
+          } else {
+            // Token might be expired, clear it
+            authService.logout()
+            dispatch({ type: 'SET_LOADING', payload: false })
+          }
         } else {
           dispatch({ type: 'SET_LOADING', payload: false })
         }
       } catch (error) {
         console.error('Error checking auth status:', error)
+        authService.logout()
         dispatch({ type: 'SET_LOADING', payload: false })
       }
     }
@@ -74,35 +79,23 @@ export function AuthProvider({ children }) {
   const register = async (userData) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true })
+      dispatch({ type: 'SET_ERROR', payload: null }) // Clear previous errors
       
-      // Check if user already exists
-      const existingUsers = JSON.parse(localStorage.getItem('users') || '[]')
-      const userExists = existingUsers.find(user => user.email === userData.email)
+      const result = await authService.register(userData)
       
-      if (userExists) {
-        throw new Error('User with this email already exists')
+      if (result.success) {
+        dispatch({ type: 'SET_LOADING', payload: false })
+        return { success: true, user: result.data.user }
+      } else {
+        dispatch({ type: 'SET_ERROR', payload: result.error })
+        return { success: false, error: result.error }
       }
-      
-      // Create new user
-      const newUser = {
-        id: Date.now().toString(),
-        ...userData,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        isVerified: false,
-        role: 'user'
-      }
-      
-      // Save to users list
-      existingUsers.push(newUser)
-      localStorage.setItem('users', JSON.stringify(existingUsers))
-      
-      console.log('User registered:', newUser)
-      return { success: true, user: newUser }
       
     } catch (error) {
       dispatch({ type: 'SET_ERROR', payload: error.message })
       return { success: false, error: error.message }
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false })
     }
   }
 
@@ -110,34 +103,15 @@ export function AuthProvider({ children }) {
     try {
       dispatch({ type: 'SET_LOADING', payload: true })
       
-      // Dummy OTP verification (accept any 6-digit number)
-      if (otp.length !== 6 || !/^\d+$/.test(otp)) {
-        throw new Error('Please enter a valid 6-digit OTP')
+      const result = await authService.verifyOTP(email, otp)
+      
+      if (result.success) {
+        dispatch({ type: 'LOGIN_SUCCESS', payload: result.data.user })
+        return { success: true, user: result.data.user }
+      } else {
+        dispatch({ type: 'SET_ERROR', payload: result.error })
+        return { success: false, error: result.error }
       }
-      
-      // Find user and mark as verified
-      const users = JSON.parse(localStorage.getItem('users') || '[]')
-      const userIndex = users.findIndex(user => user.email === email)
-      
-      if (userIndex === -1) {
-        throw new Error('User not found')
-      }
-      
-      users[userIndex].isVerified = true
-      users[userIndex].updatedAt = new Date().toISOString()
-      localStorage.setItem('users', JSON.stringify(users))
-      
-      // Auto-login after verification
-      const verifiedUser = users[userIndex]
-      const authToken = `token_${verifiedUser.id}_${Date.now()}`
-      
-      localStorage.setItem('currentUser', JSON.stringify(verifiedUser))
-      localStorage.setItem('authToken', authToken)
-      
-      dispatch({ type: 'LOGIN_SUCCESS', payload: verifiedUser })
-      
-      console.log('OTP verified and user logged in:', verifiedUser)
-      return { success: true, user: verifiedUser }
       
     } catch (error) {
       dispatch({ type: 'SET_ERROR', payload: error.message })
@@ -149,29 +123,15 @@ export function AuthProvider({ children }) {
     try {
       dispatch({ type: 'SET_LOADING', payload: true })
       
-      // Find user
-      const users = JSON.parse(localStorage.getItem('users') || '[]')
-      const user = users.find(u => u.email === email && u.password === password)
+      const result = await authService.login(email, password)
       
-      if (!user) {
-        throw new Error('Invalid email or password')
+      if (result.success) {
+        dispatch({ type: 'LOGIN_SUCCESS', payload: result.data.user })
+        return { success: true, user: result.data.user }
+      } else {
+        dispatch({ type: 'SET_ERROR', payload: result.error })
+        return { success: false, error: result.error }
       }
-      
-      if (!user.isVerified) {
-        throw new Error('Please verify your email first')
-      }
-      
-      // Create auth token
-      const authToken = `token_${user.id}_${Date.now()}`
-      
-      // Save current user session
-      localStorage.setItem('currentUser', JSON.stringify(user))
-      localStorage.setItem('authToken', authToken)
-      
-      dispatch({ type: 'LOGIN_SUCCESS', payload: user })
-      
-      console.log('User logged in:', user)
-      return { success: true, user }
       
     } catch (error) {
       dispatch({ type: 'SET_ERROR', payload: error.message })
@@ -179,31 +139,27 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const logout = () => {
-    localStorage.removeItem('currentUser')
-    localStorage.removeItem('authToken')
-    dispatch({ type: 'LOGOUT' })
-    console.log('User logged out')
+  const logout = async () => {
+    try {
+      await authService.logout()
+      dispatch({ type: 'LOGOUT' })
+    } catch (error) {
+      console.error('Logout error:', error)
+      dispatch({ type: 'LOGOUT' })
+    }
   }
 
-  const updateUser = (userData) => {
+  const updateUser = async (userData) => {
     try {
-      const updatedUser = { ...state.user, ...userData, updatedAt: new Date().toISOString() }
+      const result = await authService.updateProfile(userData)
       
-      // Update in users list
-      const users = JSON.parse(localStorage.getItem('users') || '[]')
-      const userIndex = users.findIndex(u => u.id === state.user.id)
-      if (userIndex !== -1) {
-        users[userIndex] = updatedUser
-        localStorage.setItem('users', JSON.stringify(users))
+      if (result.success) {
+        dispatch({ type: 'UPDATE_USER', payload: userData })
+        return { success: true, user: result.data }
+      } else {
+        dispatch({ type: 'SET_ERROR', payload: result.error })
+        return { success: false, error: result.error }
       }
-      
-      // Update current user session
-      localStorage.setItem('currentUser', JSON.stringify(updatedUser))
-      
-      dispatch({ type: 'UPDATE_USER', payload: userData })
-      
-      return { success: true, user: updatedUser }
     } catch (error) {
       dispatch({ type: 'SET_ERROR', payload: error.message })
       return { success: false, error: error.message }

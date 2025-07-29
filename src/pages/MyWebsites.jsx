@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom'
 import { useApp } from '../contexts/AppContext'
 import Button from '../components/ui/Button'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
+import { websiteService } from '../services/websiteService'
+import { productService } from '../services/productService'
+import { orderService } from '../services/orderService'
 import { 
   Plus, 
   Globe, 
@@ -25,20 +28,33 @@ function MyWebsites() {
     const loadUserWebsites = async () => {
       try {
         setLoading(true)
-        // Load websites from localStorage
-        const userWebsites = JSON.parse(localStorage.getItem('userWebsites') || '[]')
         
-        // Add mock stats for existing websites
-        const websitesWithStats = userWebsites.map(website => ({
-          ...website,
-          productsCount: Math.floor(Math.random() * 20) + 5,
-          visitorsCount: Math.floor(Math.random() * 2000) + 500,
-          ordersCount: Math.floor(Math.random() * 50) + 10,
-          customizations: {
-            ...website.customizations,
-            logo: `https://via.placeholder.com/100x40/${website.customizations.colors.primary.replace('#', '')}/ffffff?text=${website.name.split(' ')[0]}`
+        // Load websites from API
+        const websitesResult = await websiteService.getWebsites()
+        if (!websitesResult.success) {
+          throw new Error(websitesResult.error)
+        }
+
+        // Load products and orders to get stats
+        const productsResult = await productService.getProducts()
+        const ordersResult = await orderService.getOrders()
+        
+        const products = productsResult.success ? productsResult.data : []
+        const orders = ordersResult.success ? ordersResult.data : []
+        
+        // Add stats for each website
+        const websitesWithStats = websitesResult.data.map(website => {
+          const websiteProducts = products.filter(p => p.website === website.id)
+          const websiteOrders = orders.filter(o => o.website === website.id)
+          
+          return {
+            ...website,
+            productsCount: websiteProducts.length,
+            visitorsCount: Math.floor(Math.random() * 2000) + 500, // Mock data for now
+            ordersCount: websiteOrders.length,
+            logoUrl: website.logoUrl || `https://via.placeholder.com/100x40/${website.customizations?.colors?.primary?.replace('#', '') || '3b82f6'}/ffffff?text=${website.name.split(' ')[0]}`
           }
-        }))
+        })
         
         setWebsites(websitesWithStats)
       } catch (error) {
@@ -111,7 +127,7 @@ function MyWebsites() {
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center space-x-3">
                       <img
-                        src={website.customizations.logo}
+                        src={website.logoUrl}
                         alt={`${website.name} logo`}
                         className="w-10 h-10 rounded-lg object-cover"
                       />

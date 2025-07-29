@@ -29,7 +29,7 @@ function VerifyOTP() {
   // Clear error when component mounts
   useEffect(() => {
     clearError()
-  }, [clearError])
+  }, []) // Remove clearError from dependencies to prevent infinite loop
 
   // Resend cooldown timer
   useEffect(() => {

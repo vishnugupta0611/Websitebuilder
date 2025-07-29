@@ -3,6 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useApp } from '../contexts/AppContext'
 import Button from '../components/ui/Button'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
+import { websiteService } from '../services/websiteService'
+import { productService } from '../services/productService'
 import { 
   Plus, 
   Package, 
@@ -44,19 +46,24 @@ function MyProducts() {
     try {
       setLoading(true)
       
-      // Load user websites from localStorage
-      const userWebsites = JSON.parse(localStorage.getItem('userWebsites') || '[]')
-      setWebsites(userWebsites)
+      // Load user websites from API
+      const websitesResult = await websiteService.getWebsites()
+      if (websitesResult.success) {
+        setWebsites(websitesResult.data)
+      }
 
-      // Load products from localStorage
-      const userProducts = JSON.parse(localStorage.getItem('userProducts') || '[]')
-
-      // Filter products by selected website
-      const filteredProducts = selectedWebsiteId 
-        ? userProducts.filter(p => p.websiteId === selectedWebsiteId)
-        : userProducts
-
-      setProducts(filteredProducts)
+      // Load products from API
+      const productsResult = await productService.getProducts(selectedWebsiteId)
+      if (productsResult.success) {
+        // Add mock stats for existing products
+        const productsWithStats = productsResult.data.map(product => ({
+          ...product,
+          sales: Math.floor(Math.random() * 100) + 10,
+          views: Math.floor(Math.random() * 500) + 50,
+          images: product.images && product.images.length > 0 ? product.images : ['https://via.placeholder.com/300x300/f3f4f6/9ca3af?text=No+Image']
+        }))
+        setProducts(productsWithStats)
+      }
     } catch (error) {
       dispatch({ type: 'SET_ERROR', payload: 'Failed to load products' })
     } finally {
@@ -341,13 +348,13 @@ function MyProducts() {
                       Edit
                     </Button>
                     
-                    {product.status === 'published' && (
+                    {product.status === 'active' && (
                       <Button
                         variant="outline"
                         size="sm"
                         className="flex-1"
                         as={Link}
-                        to={`/${websites.find(w => w.id === product.websiteId)?.slug}/products/${product.id}`}
+                        to={`/${websites.find(w => w.id === product.website)?.slug}/products/${product.id}`}
                       >
                         <Eye className="h-4 w-4 mr-1" />
                         View

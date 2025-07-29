@@ -5,6 +5,9 @@ import { WebsiteCartProvider, useWebsiteCart } from '../contexts/WebsiteCartCont
 import Button from '../components/ui/Button'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import TemplateRenderer from '../components/templates/TemplateRenderer'
+import { websiteService } from '../services/websiteService'
+import { productService } from '../services/productService'
+import { blogService } from '../services/blogService'
 import {
   ShoppingCart,
   Star,
@@ -59,36 +62,31 @@ function UserWebsiteContent() {
     try {
       setLoading(true)
 
-      // Load website data from localStorage
-      const userWebsites = JSON.parse(localStorage.getItem('userWebsites') || '[]')
-      console.log('Available websites:', userWebsites)
-      console.log('Looking for slug:', slug)
-
-      const websiteData = userWebsites.find(site => site.slug === slug && site.status === 'published')
-
-      if (!websiteData) {
-        // Check if website exists but is not published
-        const draftWebsite = userWebsites.find(site => site.slug === slug)
-        if (draftWebsite) {
-          dispatch({ type: 'SET_ERROR', payload: 'Website is not published yet' })
-        } else {
-          dispatch({ type: 'SET_ERROR', payload: 'Website not found' })
-        }
+      // Load website data from API
+      const websiteResult = await websiteService.getWebsiteBySlug(slug)
+      
+      if (!websiteResult.success) {
+        dispatch({ type: 'SET_ERROR', payload: 'Website not found' })
         setLoading(false)
         return
       }
 
-      // Load products for this website from localStorage
-      const userProducts = JSON.parse(localStorage.getItem('userProducts') || '[]')
-      const websiteProducts = userProducts.filter(product =>
-        product.websiteId === websiteData.id && product.status === 'published'
-      )
+      const websiteData = websiteResult.data
 
-      // Load blogs for this website from localStorage
-      const userBlogs = JSON.parse(localStorage.getItem('userBlogs') || '[]')
-      const websiteBlogs = userBlogs.filter(blog =>
-        blog.websiteId === websiteData.id && blog.status === 'published'
-      ).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      // Only show published websites
+      if (websiteData.status !== 'published') {
+        dispatch({ type: 'SET_ERROR', payload: 'Website is not published yet' })
+        setLoading(false)
+        return
+      }
+
+      // Load products for this website from API
+      const productsResult = await productService.getProductsByWebsiteSlug(slug)
+      const websiteProducts = productsResult.success ? productsResult.data : []
+
+      // Load blogs for this website from API
+      const blogsResult = await blogService.getBlogsByWebsiteSlug(slug)
+      const websiteBlogs = blogsResult.success ? blogsResult.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) : []
 
       console.log('Website found:', websiteData)
       console.log('Products found:', websiteProducts)

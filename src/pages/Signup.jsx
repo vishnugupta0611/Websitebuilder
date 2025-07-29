@@ -32,7 +32,7 @@ function Signup() {
   // Clear error when component mounts
   useEffect(() => {
     clearError()
-  }, [clearError])
+  }, []) // Remove clearError from dependencies to prevent infinite loop
 
   const validateForm = () => {
     const errors = {}
@@ -64,8 +64,10 @@ function Signup() {
     // Password validation
     if (!formData.password) {
       errors.password = 'Password is required'
-    } else if (formData.password.length < 6) {
-      errors.password = 'Password must be at least 6 characters'
+    } else if (formData.password.length < 8) {
+      errors.password = 'Password must be at least 8 characters'
+    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
+      errors.password = 'Password must contain uppercase, lowercase, and numbers'
     }
 
     // Confirm password validation
@@ -81,26 +83,26 @@ function Signup() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
       return
     }
 
     setIsSubmitting(true)
-    
-    const { confirmPassword, ...userData } = formData
-    const result = await register(userData)
-    
+
+    // Send complete form data including confirmPassword for backend validation
+    const result = await register(formData)
+
     if (result.success) {
       // Navigate to OTP verification page
-      navigate('/verify-otp', { 
-        state: { 
+      navigate('/verify-otp', {
+        state: {
           email: formData.email,
           name: `${formData.firstName} ${formData.lastName}`
         }
       })
     }
-    
+
     setIsSubmitting(false)
   }
 
@@ -109,7 +111,7 @@ function Signup() {
       ...formData,
       [e.target.name]: e.target.value
     })
-    
+
     // Clear specific field error when user starts typing
     if (formErrors[e.target.name]) {
       setFormErrors({
@@ -117,7 +119,7 @@ function Signup() {
         [e.target.name]: ''
       })
     }
-    
+
     // Clear general error
     if (error) {
       clearError()
@@ -252,6 +254,9 @@ function Signup() {
                 {formErrors.password && (
                   <p className="mt-1 text-sm text-red-600">{formErrors.password}</p>
                 )}
+                <p className="mt-1 text-xs text-gray-500">
+                  Must be 8+ characters with uppercase, lowercase, and numbers
+                </p>
               </div>
 
               {/* Confirm Password Field */}

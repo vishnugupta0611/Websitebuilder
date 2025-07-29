@@ -10,6 +10,7 @@ import MyWebsites from './pages/MyWebsites'
 import WebsiteBuilder from './pages/WebsiteBuilder'
 import MyProducts from './pages/MyProducts'
 import ProductManager from './pages/ProductManager'
+import BlogManager from './pages/BlogManager'
 import UserWebsite from './pages/UserWebsite'
 import UserAbout from './pages/UserAbout'
 import UserContact from './pages/UserContact'
@@ -26,6 +27,7 @@ import OrdersDashboard from './pages/OrdersDashboard'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import VerifyOTP from './pages/VerifyOTP'
+import ApiTest from './pages/ApiTest'
 
 // Import test data utility for development
 import './utils/testData'
@@ -48,11 +50,13 @@ function App() {
             <Route path="/website-builder" element={<ProtectedRoute><Layout><WebsiteBuilder /></Layout></ProtectedRoute>} />
             <Route path="/my-products" element={<ProtectedRoute><Layout><MyProducts /></Layout></ProtectedRoute>} />
             <Route path="/product-manager" element={<ProtectedRoute><Layout><ProductManager /></Layout></ProtectedRoute>} />
+            <Route path="/blog-manager" element={<ProtectedRoute><Layout><BlogManager /></Layout></ProtectedRoute>} />
             <Route path="/cart" element={<ProtectedRoute><Layout><Cart /></Layout></ProtectedRoute>} />
             <Route path="/checkout" element={<ProtectedRoute><Layout><Checkout /></Layout></ProtectedRoute>} />
             <Route path="/search" element={<ProtectedRoute><Layout><Search /></Layout></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Layout><CustomerProfile /></Layout></ProtectedRoute>} />
             <Route path="/orders" element={<ProtectedRoute><Layout><OrdersDashboard /></Layout></ProtectedRoute>} />
+            <Route path="/api-test" element={<ProtectedRoute><Layout><ApiTest /></Layout></ProtectedRoute>} />
             
             {/* User Website Routes - WITHOUT Layout (Independent websites) */}
             <Route path="/:slug" element={<UserWebsite />} />

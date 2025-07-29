@@ -5,6 +5,8 @@ import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import Modal from '../components/ui/Modal'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
+import { websiteService } from '../services/websiteService'
+import { blogService } from '../services/blogService'
 import { 
   Save, 
   Eye, 
@@ -113,19 +115,40 @@ function ContentEditor() {
     try {
       setLoading(true)
       
-      // Load websites from localStorage
-      const userWebsites = JSON.parse(localStorage.getItem('userWebsites') || '[]')
-      setWebsites(userWebsites)
+      // Load websites from API
+      const websitesResult = await websiteService.getWebsites()
+      if (websitesResult.success) {
+        setWebsites(websitesResult.data)
+      }
 
-      // Load blogs from localStorage
-      const userBlogs = JSON.parse(localStorage.getItem('userBlogs') || '[]')
-      setBlogs(userBlogs)
+      // Load blogs from API
+      const blogsResult = await blogService.getBlogs()
+      if (blogsResult.success) {
+        setBlogs(blogsResult.data)
+      }
 
       // Load existing blog if editing
       if (isEditing) {
-        const existingBlog = userBlogs.find(blog => blog.id === blogId)
-        if (existingBlog) {
-          setBlogData(existingBlog)
+        const blogResult = await blogService.getBlog(blogId)
+        if (blogResult.success) {
+          // Map API data to frontend format
+          const blog = blogResult.data
+          const mappedBlog = {
+            ...blog,
+            websiteId: blog.website,
+            featuredImage: blog.featuredImage || '',
+            tags: blog.tags || [],
+            template: blog.template || 'default',
+            layout: blog.layout || 'card',
+            customizations: blog.customizations || {
+              layout: 'column',
+              showAuthor: true,
+              showDate: true,
+              showTags: true,
+              cardStyle: 'modern'
+            }
+          }
+          setBlogData(mappedBlog)
           setShowEditor(true)
         }
       }
@@ -139,29 +162,37 @@ function ContentEditor() {
   const handleSave = async (publish = false) => {
     setSaving(true)
     try {
+      // Map frontend data to API format
       const saveData = {
-        ...blogData,
-        id: blogId || Date.now().toString(),
+        title: blogData.title,
+        slug: blogData.slug || blogData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+        content: blogData.content,
+        excerpt: blogData.excerpt,
+        website: blogData.websiteId,
+        featuredImage: blogData.featuredImage,
+        author: blogData.author,
+        tags: blogData.tags,
         status: publish ? 'published' : 'draft',
         publishDate: publish ? (blogData.publishDate || new Date().toISOString()) : blogData.publishDate,
-        createdAt: blogData.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        slug: blogData.slug || blogData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+        template: blogData.template,
+        customizations: blogData.customizations
       }
 
-      // Save to localStorage
-      const existingBlogs = JSON.parse(localStorage.getItem('userBlogs') || '[]')
-      
+      let result
       if (isEditing) {
-        const updatedBlogs = existingBlogs.map(blog => 
-          blog.id === blogId ? saveData : blog
-        )
-        localStorage.setItem('userBlogs', JSON.stringify(updatedBlogs))
-        setBlogs(updatedBlogs)
+        result = await blogService.updateBlog(blogId, saveData)
       } else {
-        const newBlogs = [...existingBlogs, saveData]
-        localStorage.setItem('userBlogs', JSON.stringify(newBlogs))
-        setBlogs(newBlogs)
+        result = await blogService.createBlog(saveData)
+      }
+      
+      if (!result.success) {
+        throw new Error(result.error)
+      }
+      
+      // Reload blogs
+      const blogsResult = await blogService.getBlogs()
+      if (blogsResult.success) {
+        setBlogs(blogsResult.data)
       }
       
       dispatch({ type: 'SET_ERROR', payload: null })
@@ -180,6 +211,7 @@ function ContentEditor() {
         status: 'draft',
         publishDate: '',
         template: 'default',
+        layout: 'card',
         customizations: {
           layout: 'column',
           showAuthor: true,
@@ -195,11 +227,21 @@ function ContentEditor() {
     }
   }
 
-  const handleDelete = (blogId) => {
-    const existingBlogs = JSON.parse(localStorage.getItem('userBlogs') || '[]')
-    const updatedBlogs = existingBlogs.filter(blog => blog.id !== blogId)
-    localStorage.setItem('userBlogs', JSON.stringify(updatedBlogs))
-    setBlogs(updatedBlogs)
+  const handleDelete = async (blogId) => {
+    try {
+      const result = await blogService.deleteBlog(blogId)
+      if (result.success) {
+        // Reload blogs
+        const blogsResult = await blogService.getBlogs()
+        if (blogsResult.success) {
+          setBlogs(blogsResult.data)
+        }
+      } else {
+        dispatch({ type: 'SET_ERROR', payload: 'Failed to delete blog' })
+      }
+    } catch (error) {
+      dispatch({ type: 'SET_ERROR', payload: 'Failed to delete blog' })
+    }
   }
 
   const addTag = () => {

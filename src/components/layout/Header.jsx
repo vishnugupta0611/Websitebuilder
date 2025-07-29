@@ -69,10 +69,10 @@ function Header() {
     },
     {
       name: 'Blogs',
-      path: '/content-editor',
+      path: '/blog-manager',
       subItems: [
-        { name: 'Editor', path: '/content-editor' },
-        { name: 'Posts', path: '/content-editor/posts' },
+        { name: 'Blog Manager', path: '/blog-manager' },
+        { name: 'Content Editor', path: '/content-editor' },
         { name: 'Statistics', path: '/content-editor/stats' }
       ]
     }

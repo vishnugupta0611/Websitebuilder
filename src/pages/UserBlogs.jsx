@@ -4,6 +4,8 @@ import { useApp } from '../contexts/AppContext'
 import { WebsiteCartProvider, useWebsiteCart } from '../contexts/WebsiteCartContext'
 import Button from '../components/ui/Button'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
+import { websiteService } from '../services/websiteService'
+import { blogService } from '../services/blogService'
 import {
   ArrowLeft,
   Calendar,
@@ -13,6 +15,7 @@ import {
   Search,
   Clock
 } from 'lucide-react'
+import { use } from 'react'
 
 // Cart Icon Component
 function WebsiteCartIcon({ website, slug }) {
@@ -54,21 +57,28 @@ function UserBlogsContent() {
     try {
       setLoading(true)
 
-      // Load website data from localStorage
-      const userWebsites = JSON.parse(localStorage.getItem('userWebsites') || '[]')
-      const websiteData = userWebsites.find(site => site.slug === slug && site.status === 'published')
-
-      if (!websiteData) {
+      // Load website data from API
+      const websiteResult = await websiteService.getWebsiteBySlug(slug)
+      
+      if (!websiteResult.success) {
         dispatch({ type: 'SET_ERROR', payload: 'Website not found' })
         setLoading(false)
         return
       }
 
-      // Load blogs for this website from localStorage
-      const userBlogs = JSON.parse(localStorage.getItem('userBlogs') || '[]')
-      const websiteBlogs = userBlogs.filter(blog =>
-        blog.websiteId === websiteData.id && blog.status === 'published'
-      ).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      const websiteData = websiteResult.data
+
+      // Only show published websites
+      if (websiteData.status !== 'published') {
+        dispatch({ type: 'SET_ERROR', payload: 'Website not found' })
+        setLoading(false)
+        return
+      }
+
+      // Load blogs for this website from API
+      const blogsResult = await blogService.getBlogsByWebsiteSlug(slug)
+      const websiteBlogs = blogsResult.success ? 
+        blogsResult.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) : []
 
       console.log('Website found:', websiteData)
       console.log('Blogs found:', websiteBlogs)
@@ -94,7 +104,12 @@ function UserBlogsContent() {
     blog.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     blog.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
     blog.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+    
   )
+  useEffect(() => {
+    console.log('Filtered blogs:', blogs)
+  }, [blogs])
+
 
   const renderBlogCard = (blog) => {
     // For traditional card layout, use customizations.layout for the specific layout type
@@ -117,48 +132,47 @@ function UserBlogsContent() {
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
             />
 
-            {/* Hover Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-              <div className="absolute bottom-0 left-0 right-0 p-6 text-white transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
-                {/* Blog Title */}
-                <h3 className="text-xl md:text-2xl font-bold mb-3 line-clamp-2">
-                  {blog.title}
-                </h3>
+            {/* Always Visible Content - Bottom Overlay */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-6">
+              <h3 className="text-xl md:text-2xl font-bold mb-2 text-white line-clamp-2">
+                {blog.title}
+              </h3>
+              
+              <div className="flex items-center text-xs text-gray-300 mb-3">
+                <Calendar className="h-3 w-3 mr-1" />
+                {new Date(blog.createdAt).toLocaleDateString()}
+                {blog.author && (
+                  <>
+                    <User className="h-3 w-3 ml-3 mr-1" />
+                    {blog.author}
+                  </>
+                )}
+              </div>
+            </div>
 
+            {/* Hover Overlay - Additional Content */}
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+              <div className="text-center text-white p-6 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
                 {/* Blog Description/Excerpt */}
                 {blog.excerpt && (
-                  <p className="text-sm md:text-base text-gray-200 mb-4 line-clamp-3">
+                  <p className="text-sm md:text-base text-gray-200 mb-4 line-clamp-3 max-w-md">
                     {blog.excerpt}
                   </p>
                 )}
 
-                {/* Blog Meta Info */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center text-xs text-gray-300">
-                    <Calendar className="h-3 w-3 mr-1" />
-                    {new Date(blog.createdAt).toLocaleDateString()}
-                    {blog.author && (
-                      <>
-                        <User className="h-3 w-3 ml-3 mr-1" />
-                        {blog.author}
-                      </>
-                    )}
-                  </div>
-
-                  {/* Read More Button */}
-                  <Link
-                    to={`/${slug}/blogs/${blog.slug}`}
-                    className="inline-flex items-center px-4 py-2 bg-white/20 backdrop-blur-sm text-white text-sm font-medium rounded-full hover:bg-white/30 transition-colors duration-200"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    Read More
-                    <ArrowLeft className="h-3 w-3 ml-1 rotate-180" />
-                  </Link>
-                </div>
+                {/* Read More Button */}
+                <Link
+                  to={`/${slug}/blogs/${blog.slug}`}
+                  className="inline-flex items-center px-6 py-3 bg-white/20 backdrop-blur-sm text-white text-sm font-medium rounded-full hover:bg-white/30 transition-colors duration-200"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Read More
+                  <ArrowLeft className="h-4 w-4 ml-2 rotate-180" />
+                </Link>
 
                 {/* Tags */}
                 {blog.tags && blog.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-3">
+                  <div className="flex flex-wrap gap-1 mt-4 justify-center">
                     {blog.tags.slice(0, 3).map((tag, index) => (
                       <span
                         key={index}
@@ -178,13 +192,6 @@ function UserBlogsContent() {
               </div>
             </div>
           </div>
-
-          {/* Click Handler for Entire Card */}
-          <Link
-            to={`/${slug}/blogs/${blog.slug}`}
-            className="absolute inset-0 z-10"
-            aria-label={`Read ${blog.title}`}
-          />
         </article>
       )
     }
@@ -193,7 +200,7 @@ function UserBlogsContent() {
     return (
       <article
         key={blog.id}
-        className={`bg-white rounded-lg shadow-sm border overflow-hidden hover:shadow-lg transition-shadow ${layout === 'column' ? '' : 'flex'
+        className={`bg-white rounded-lg shadow-sm w-fit border overflow-hidden hover:shadow-lg transition-shadow ${layout === 'column' ? '' : 'flex'
           }`}
         style={{ borderColor: website.customizations.colors.secondary + '30' }}
       >
@@ -209,7 +216,7 @@ function UserBlogsContent() {
             <img
               src={blog.featuredImage}
               alt={blog.title}
-              className={`object-cover ${layout === 'column' ? 'w-full h-48' : 'w-full h-full'
+              className={`object-cover ${layout === 'column' ? 'w-full h-48 ' : 'w-full h-full'
                 }`}
             />
           </div>

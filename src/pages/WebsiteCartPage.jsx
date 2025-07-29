@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { WebsiteCartProvider } from '../contexts/WebsiteCartContext'
 import WebsiteCart from '../components/website/WebsiteCart'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
+import { websiteService } from '../services/websiteService'
 
 function WebsiteCartPage() {
     const { slug } = useParams()
@@ -17,16 +18,21 @@ function WebsiteCartPage() {
         try {
             setLoading(true)
 
-            // Load website data from localStorage
-            const userWebsites = JSON.parse(localStorage.getItem('userWebsites') || '[]')
-            const websiteData = userWebsites.find(site => site.slug === slug && site.status === 'published')
+            // Load website data from API
+            const result = await websiteService.getWebsiteBySlug(slug)
 
-            if (!websiteData) {
-                console.error('Website not found')
+            if (!result.success) {
+                console.error('Website not found:', result.error)
                 return
             }
 
-            setWebsite(websiteData)
+            // Only show published websites
+            if (result.data.status !== 'published') {
+                console.error('Website not published')
+                return
+            }
+
+            setWebsite(result.data)
         } catch (error) {
             console.error('Error loading website:', error)
         } finally {
