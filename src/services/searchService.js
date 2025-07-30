@@ -8,41 +8,40 @@ export const searchService = {
         ...filters
       }
       const queryString = new URLSearchParams(searchParams).toString()
-      return await api.get(`/search?${queryString}`)
+      const response = await api.get(`/search/?${queryString}`)
+      return response
     } catch (error) {
-      // Mock search results for development
+      console.error('Search API error:', error)
+      
+      // Fallback to mock data if API fails
       const mockResults = [
         {
           id: '1',
           type: 'page',
-          title: 'Home Page',
-          content: 'Welcome to Corporate Portal. This is the home page content.',
-          url: '/',
-          snippet: 'Welcome to Corporate Portal. This is the home page...',
-          relevance: 0.95,
-          lastModified: '2024-01-15T10:00:00Z'
+          title: 'Sample Website',
+          snippet: 'This is a sample website page that matches your search...',
+          url: '/sample-website',
+          relevance: 0.85,
+          lastModified: new Date().toISOString()
         },
         {
           id: '2',
           type: 'product',
-          title: 'Professional Business Card Holder',
-          content: 'Elegant leather business card holder perfect for corporate professionals.',
-          url: '/products/1',
-          snippet: 'Elegant leather business card holder perfect for corporate...',
-          relevance: 0.87,
-          lastModified: '2024-01-10T15:30:00Z',
-          price: 29.99,
-          image: 'https://via.placeholder.com/100x100/3b82f6/ffffff?text=Card+Holder'
+          title: 'Sample Product',
+          snippet: 'This is a sample product that matches your search criteria...',
+          url: '/sample-website/products/1',
+          relevance: 0.75,
+          lastModified: new Date().toISOString(),
+          price: 99.99
         },
         {
           id: '3',
           type: 'blog',
-          title: 'Company News',
-          content: 'Latest Company Updates. Stay informed about our latest developments.',
-          url: '/blog/company-news',
-          snippet: 'Latest Company Updates. Stay informed about our latest...',
-          relevance: 0.72,
-          lastModified: '2024-01-12T09:15:00Z'
+          title: 'Sample Blog Post',
+          snippet: 'This is a sample blog post that contains relevant information...',
+          url: '/sample-website/blogs/sample-post',
+          relevance: 0.65,
+          lastModified: new Date().toISOString()
         }
       ]
 
@@ -50,22 +49,20 @@ export const searchService = {
       if (query) {
         const filteredResults = mockResults.filter(result =>
           result.title.toLowerCase().includes(query.toLowerCase()) ||
-          result.content.toLowerCase().includes(query.toLowerCase())
+          result.snippet.toLowerCase().includes(query.toLowerCase())
         )
         return {
           results: filteredResults,
           total: filteredResults.length,
           query,
-          filters,
-          suggestions: query.length > 0 ? ['corporate', 'business', 'professional'] : []
+          suggestions: ['sample', 'website', 'product', 'blog']
         }
       }
 
       return {
-        results: mockResults,
-        total: mockResults.length,
+        results: [],
+        total: 0,
         query,
-        filters,
         suggestions: []
       }
     }
@@ -73,15 +70,18 @@ export const searchService = {
 
   async getSearchSuggestions(query) {
     try {
-      return await api.get(`/search/suggestions?q=${query}`)
+      const response = await api.get(`/search/suggestions/?q=${query}`)
+      return response
     } catch (error) {
+      console.error('Search suggestions API error:', error)
+      
       // Mock suggestions for development
       const mockSuggestions = [
-        'corporate portal',
-        'business cards',
-        'professional accessories',
-        'executive products',
-        'office supplies'
+        'website',
+        'product',
+        'blog',
+        'business',
+        'portfolio'
       ]
 
       if (query) {
@@ -96,15 +96,18 @@ export const searchService = {
 
   async getPopularSearches() {
     try {
-      return await api.get('/search/popular')
+      const response = await api.get('/search/popular/')
+      return response
     } catch (error) {
+      console.error('Popular searches API error:', error)
+      
       // Mock popular searches for development
       return [
-        { query: 'business cards', count: 150 },
-        { query: 'executive pens', count: 89 },
-        { query: 'laptop bags', count: 76 },
-        { query: 'corporate gifts', count: 65 },
-        { query: 'office accessories', count: 54 }
+        { query: 'websites', count: 150 },
+        { query: 'products', count: 89 },
+        { query: 'blog posts', count: 76 },
+        { query: 'business', count: 65 },
+        { query: 'portfolio', count: 54 }
       ]
     }
   }
