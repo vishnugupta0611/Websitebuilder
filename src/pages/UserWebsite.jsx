@@ -71,7 +71,126 @@ function UserWebsiteContent() {
         return
       }
 
-      const websiteData = websiteResult.data
+      let websiteData = websiteResult.data
+
+      console.log('🔍 Raw website data from API:', websiteData)
+
+      // Transform backend data to frontend format
+      if (websiteData) {
+        // Ensure templateContent exists and has proper structure
+        if (!websiteData.templateContent) {
+          websiteData.templateContent = {}
+        }
+        
+        // Ensure template object exists with proper structure
+        if (!websiteData.template) {
+          websiteData.template = {
+            id: websiteData.template_id || 'default',
+            name: websiteData.template_name || 'Default Template',
+            metadata: websiteData.template_metadata || {}
+          }
+        }
+        
+        // Ensure customizations exist with proper structure - handle both object and string formats
+        if (!websiteData.customizations || typeof websiteData.customizations === 'string') {
+          try {
+            // If customizations is a string, try to parse it
+            const parsedCustomizations = typeof websiteData.customizations === 'string' 
+              ? JSON.parse(websiteData.customizations) 
+              : websiteData.customizations
+            
+            websiteData.customizations = {
+              colors: {
+                primary: parsedCustomizations?.colors?.primary || '#3B82F6',
+                secondary: parsedCustomizations?.colors?.secondary || '#6B7280',
+                accent: parsedCustomizations?.colors?.accent || '#F59E0B',
+                background: parsedCustomizations?.colors?.background || '#FFFFFF',
+                text: parsedCustomizations?.colors?.text || '#1F2937'
+              },
+              typography: {
+                headingFont: parsedCustomizations?.typography?.headingFont || 'Inter, sans-serif',
+                bodyFont: parsedCustomizations?.typography?.bodyFont || 'Inter, sans-serif'
+              }
+            }
+          } catch (e) {
+            // Fallback to default if parsing fails
+            websiteData.customizations = {
+              colors: {
+                primary: '#3B82F6',
+                secondary: '#6B7280',
+                accent: '#F59E0B',
+                background: '#FFFFFF',
+                text: '#1F2937'
+              },
+              typography: {
+                headingFont: 'Inter, sans-serif',
+                bodyFont: 'Inter, sans-serif'
+              }
+            }
+          }
+        }
+        
+        // Ensure aboutContent exists
+        if (!websiteData.aboutContent) {
+          websiteData.aboutContent = {
+            companyStory: websiteData.companyStory || '',
+            whyCreated: websiteData.whyCreated || '',
+            mission: websiteData.mission || '',
+            vision: websiteData.vision || '',
+            features: websiteData.features || [],
+            teamInfo: websiteData.teamInfo || [],
+            contactInfo: websiteData.contactInfo || {}
+          }
+        }
+        
+        // CRITICAL: Map backend fields to templateContent - ensure hero image is properly mapped
+        const heroImageSources = [
+          websiteData.heroImage,           // Primary source from backend
+          websiteData.hero_image,          // Snake case variant
+          websiteData.heroImageUrl,        // URL variant
+          websiteData.hero_image_url,      // Snake case URL variant
+          websiteData.templateContent?.heroImage  // Existing templateContent
+        ]
+        
+        const heroImage = heroImageSources.find(source => {
+          return source && 
+                 typeof source === 'string' && 
+                 source.trim() !== '' && 
+                 (source.startsWith('http') || source.startsWith('data:'))
+        })
+        
+        if (heroImage) {
+          websiteData.templateContent.heroImage = heroImage
+          console.log('✅ Successfully mapped hero image to templateContent:', heroImage)
+        } else {
+          console.log('⚠️ No valid hero image found in any source')
+          console.log('Available sources:', heroImageSources)
+        }
+        
+        // Map other hero fields to templateContent
+        if (websiteData.heroTitle) {
+          websiteData.templateContent.heroTitle = websiteData.heroTitle
+        }
+        if (websiteData.heroDescription) {
+          websiteData.templateContent.heroDescription = websiteData.heroDescription
+        }
+        if (websiteData.heroButtonText) {
+          websiteData.templateContent.heroButtonText = websiteData.heroButtonText
+        }
+        if (websiteData.productSectionTitle) {
+          websiteData.templateContent.productSectionTitle = websiteData.productSectionTitle
+        }
+        if (websiteData.blogSectionTitle) {
+          websiteData.templateContent.blogSectionTitle = websiteData.blogSectionTitle
+        }
+        
+        console.log('✅ Final processed website data:')
+        console.log('- Direct heroImage:', websiteData.heroImage)
+        console.log('- templateContent.heroImage:', websiteData.templateContent.heroImage)
+        console.log('- template:', websiteData.template)
+        console.log('- customizations:', websiteData.customizations)
+        console.log('- Full templateContent:', websiteData.templateContent)
+      }
 
       // Only show published websites
       if (websiteData.status !== 'published') {
@@ -88,7 +207,29 @@ function UserWebsiteContent() {
       const blogsResult = await blogService.getBlogsByWebsiteSlug(slug)
       const websiteBlogs = blogsResult.success ? blogsResult.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) : []
 
-      console.log('Website found:', websiteData)
+      console.log('=== WEBSITE DATA FROM API ===')
+      console.log('Full website data:', JSON.stringify(websiteData, null, 2))
+      console.log('Template content:', websiteData.templateContent)
+      console.log('Hero image from templateContent:', websiteData.templateContent?.heroImage)
+      console.log('Hero image direct:', websiteData.heroImage)
+      console.log('All keys in websiteData:', Object.keys(websiteData))
+      
+      // Check all possible hero image fields
+      const possibleHeroFields = [
+        'heroImage', 'hero_image', 'heroImageUrl', 'hero_image_url',
+        'templateContent.heroImage', 'template_content.heroImage'
+      ]
+      
+      possibleHeroFields.forEach(field => {
+        const value = field.includes('.') 
+          ? field.split('.').reduce((obj, key) => obj?.[key], websiteData)
+          : websiteData[field]
+        if (value) {
+          console.log(`Found hero image in field "${field}":`, value)
+        }
+      })
+      
+      console.log('=== END WEBSITE DATA ===')
       console.log('Products found:', websiteProducts)
       console.log('Blogs found:', websiteBlogs)
 
@@ -105,19 +246,48 @@ function UserWebsiteContent() {
 
   // Set website info in cart context when website loads
   useEffect(() => {
+    console.log('=== WEBSITE INFO EFFECT ===')
+    console.log('Website:', website)
+    console.log('Website slug:', website?.slug)
+    console.log('Website id:', website?.id)
+    console.log('Website name:', website?.name)
+    
     if (website) {
-      setWebsiteInfo({
+      const websiteInfo = {
         slug: website.slug,
         id: website.id,
         name: website.name
-      })
+      }
+      console.log('Calling setWebsiteInfo with:', websiteInfo)
+      setWebsiteInfo(websiteInfo)
+    } else {
+      console.log('Website not loaded yet, skipping setWebsiteInfo')
     }
-  }, [website, setWebsiteInfo])
+    console.log('=== END WEBSITE INFO EFFECT ===')
+  }, [website?.id, website?.slug, website?.name, setWebsiteInfo])
 
   const handleAddToCart = (product) => {
-    addToCart(product, 1)
+    // Debug: Log the product structure
+    console.log('=== PRODUCT STRUCTURE IN handleAddToCart ===')
+    console.log('Product:', product)
+    console.log('Product keys:', Object.keys(product))
+    console.log('Product images:', product.images)
+    console.log('Product image:', product.image)
+    console.log('=== END PRODUCT STRUCTURE ===')
+    
+    // Ensure product has images array for cart compatibility
+    const productWithImages = {
+      ...product,
+      images: product.images || (product.image ? [product.image] : [])
+    }
+    
+    console.log('=== FIXED PRODUCT FOR CART ===')
+    console.log('Fixed product images:', productWithImages.images)
+    console.log('=== END FIXED PRODUCT ===')
+    
+    addToCart(productWithImages, 1)
     // Show success message or notification
-    console.log('Added to cart:', product)
+    console.log('Added to cart:', productWithImages)
   }
 
 

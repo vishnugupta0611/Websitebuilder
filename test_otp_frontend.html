@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OTP Functionality Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .step {
+            margin: 20px 0;
+            padding: 15px;
+            border-left: 4px solid #3b82f6;
+            background-color: #f8fafc;
+        }
+        .success {
+            border-left-color: #10b981;
+            background-color: #f0fdf4;
+        }
+        .error {
+            border-left-color: #ef4444;
+            background-color: #fef2f2;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .otp-inputs {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 15px 0;
+        }
+        .otp-input {
+            width: 50px;
+            height: 50px;
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+        }
+        .otp-input:focus {
+            border-color: #3b82f6;
+            outline: none;
+        }
+        .email-preview {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+        .email-preview h4 {
+            color: #3b82f6;
+            margin-top: 0;
+        }
+        .otp-code-display {
+            background: white;
+            border: 2px dashed #d1d5db;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            margin: 10px 0;
+        }
+        .otp-code-display .code {
+            font-size: 24px;
+            font-weight: bold;
+            font-family: monospace;
+            letter-spacing: 4px;
+            color: #1f2937;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 OTP Functionality Test</h1>
+        <p>This page tests the OTP email sending and verification functionality.</p>
+        
+        <div class="step">
+            <h3>Step 1: Register User & Send OTP</h3>
+            <p>Register a new user and trigger OTP email sending:</p>
+            <div class="form-group">
+                <label>First Name:</label>
+                <input type="text" id="firstName" value="Test">
+            </div>
+            <div class="form-group">
+                <label>Last Name:</label>
+                <input type="text" id="lastName" value="User">
+            </div>
+            <div class="form-group">
+                <label>Email:</label>
+                <input type="email" id="email" placeholder="your-email@example.com">
+            </div>
+            <div class="form-group">
+                <label>Phone:</label>
+                <input type="tel" id="phone" value="+1 (555) 123-4567">
+            </div>
+            <div class="form-group">
+                <label>Password:</label>
+                <input type="password" id="password" value="TestPassword123!">
+            </div>
+            <button onclick="registerUser()">Register & Send OTP</button>
+            <div id="registerResult"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: Resend OTP</h3>
+            <p>Test the resend OTP functionality:</p>
+            <button onclick="resendOTP()" id="resendBtn" disabled>Resend OTP</button>
+            <div id="resendResult"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 3: Verify OTP</h3>
+            <p>Enter the OTP code you received in your email:</p>
+            <div class="otp-inputs">
+                <input type="text" class="otp-input" maxlength="1" id="otp1" oninput="moveToNext(this, 'otp2')">
+                <input type="text" class="otp-input" maxlength="1" id="otp2" oninput="moveToNext(this, 'otp3')">
+                <input type="text" class="otp-input" maxlength="1" id="otp3" oninput="moveToNext(this, 'otp4')">
+                <input type="text" class="otp-input" maxlength="1" id="otp4" oninput="moveToNext(this, 'otp5')">
+                <input type="text" class="otp-input" maxlength="1" id="otp5" oninput="moveToNext(this, 'otp6')">
+                <input type="text" class="otp-input" maxlength="1" id="otp6" oninput="moveToNext(this, null)">
+            </div>
+            <button onclick="verifyOTP()" id="verifyBtn" disabled>Verify OTP</button>
+            <div id="verifyResult"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 4: Frontend Test</h3>
+            <p>Test the actual React frontend:</p>
+            <button onclick="openSignupPage()">Open Signup Page</button>
+            <p><small>This will open the React app signup page in a new tab</small></p>
+        </div>
+
+        <div class="step">
+            <h3>📧 Email Preview</h3>
+            <p>This is what the OTP email looks like:</p>
+            <div class="email-preview">
+                <h4>🔐 Verify Your Corporate Portal Account</h4>
+                <p><strong>Hello Test User,</strong></p>
+                <p>Welcome to Corporate Portal! To complete your account registration, please verify your email address using the verification code below:</p>
+                <div class="otp-code-display">
+                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 10px;">YOUR VERIFICATION CODE</div>
+                    <div class="code" id="emailOtpCode">------</div>
+                    <div style="font-size: 12px; color: #6b7280; margin-top: 10px;">This code expires in 10 minutes</div>
+                </div>
+                <p><strong>Features:</strong></p>
+                <ul>
+                    <li>✨ Beautiful HTML email template</li>
+                    <li>📱 Mobile-responsive design</li>
+                    <li>🎨 Professional branding</li>
+                    <li>⏰ Expiration notice</li>
+                    <li>🔒 Security warnings</li>
+                    <li>📋 Step-by-step instructions</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://127.0.0.1:8000/api';
+        let currentEmail = '';
+        let lastOtpCode = '';
+
+        function moveToNext(current, nextId) {
+            if (current.value.length === 1 && nextId) {
+                document.getElementById(nextId).focus();
+            }
+            
+            // Enable verify button if all fields are filled
+            const otpInputs = document.querySelectorAll('.otp-input');
+            const allFilled = Array.from(otpInputs).every(input => input.value.length === 1);
+            document.getElementById('verifyBtn').disabled = !allFilled;
+        }
+
+        async function registerUser() {
+            const firstName = document.getElementById('firstName').value;
+            const lastName = document.getElementById('lastName').value;
+            const email = document.getElementById('email').value;
+            const phone = document.getElementById('phone').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('registerResult');
+
+            if (!email) {
+                resultDiv.innerHTML = '<div class="error">❌ Please enter an email address</div>';
+                return;
+            }
+
+            currentEmail = email;
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/register/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        firstName,
+                        lastName,
+                        email,
+                        phone,
+                        password,
+                        confirmPassword: password
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="success">✅ Registration successful! OTP email sent to ${email}</div>`;
+                    document.getElementById('resendBtn').disabled = false;
+                    document.getElementById('emailOtpCode').textContent = '######';
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Registration failed: ${JSON.stringify(data)}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        async function resendOTP() {
+            const resultDiv = document.getElementById('resendResult');
+            
+            if (!currentEmail) {
+                resultDiv.innerHTML = '<div class="error">❌ Please register first</div>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/resend-otp/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email: currentEmail })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="success">✅ New OTP sent to ${currentEmail}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Resend failed: ${JSON.stringify(data)}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        async function verifyOTP() {
+            const resultDiv = document.getElementById('verifyResult');
+            
+            if (!currentEmail) {
+                resultDiv.innerHTML = '<div class="error">❌ Please register first</div>';
+                return;
+            }
+
+            // Get OTP from inputs
+            const otpInputs = document.querySelectorAll('.otp-input');
+            const otp = Array.from(otpInputs).map(input => input.value).join('');
+
+            if (otp.length !== 6) {
+                resultDiv.innerHTML = '<div class="error">❌ Please enter all 6 digits</div>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/verify-otp/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: currentEmail,
+                        otp: otp
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="success">✅ OTP verified successfully! Welcome email sent. Message: ${data.message}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Verification failed: ${JSON.stringify(data)}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        function openSignupPage() {
+            window.open('http://localhost:3001/signup', '_blank');
+        }
+    </script>
+</body>
+</html>

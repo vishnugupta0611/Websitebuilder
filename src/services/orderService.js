@@ -11,6 +11,16 @@ export const orderService = {
     }
   },
 
+  // Get valid status choices from backend
+  async getStatusChoices() {
+    try {
+      const response = await api.options('/orders/1/'); // OPTIONS request to get field choices
+      return { success: true, data: response };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
   // Get single order
   async getOrder(id) {
     try {
@@ -34,10 +44,29 @@ export const orderService = {
   // Update order status
   async updateOrderStatus(id, status) {
     try {
-      const response = await api.put(`/orders/${id}/`, { status })
-      return { success: true, data: response }
+      console.log(`Attempting to update order ${id} status to: ${status}`);
+      
+      // Map frontend status to backend status based on what works
+      const statusMapping = {
+        'pending': 'pending',
+        'processing': 'processing', 
+        'completed': 'delivered',  // Backend uses 'delivered' instead of 'completed'
+        'cancelled': 'cancelled'
+      };
+
+      const backendStatus = statusMapping[status] || status;
+      console.log(`Mapped ${status} to backend status: ${backendStatus}`);
+
+      const response = await api.patch(`/orders/${id}/`, { status: backendStatus });
+      console.log(`✅ Success with status: ${backendStatus}`);
+      
+      return { success: true, data: { ...response, status: backendStatus } };
     } catch (error) {
-      return { success: false, error: error.message }
+      console.error('Order status update error:', error);
+      return { 
+        success: false, 
+        error: error.response?.data || error.message || 'Failed to update order status'
+      }
     }
   },
 

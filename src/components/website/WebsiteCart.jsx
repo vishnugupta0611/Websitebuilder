@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useWebsiteCart } from '../../contexts/WebsiteCartContext'
 import Button from '../ui/Button'
@@ -17,7 +17,32 @@ import {
 } from 'lucide-react'
 
 function WebsiteCart({ website }) {
-  const { cart, updateQuantity, removeFromCart, checkout } = useWebsiteCart()
+  const { cart, updateQuantity, removeFromCart, checkout, setWebsiteInfo } = useWebsiteCart()
+
+  // Helper function to get product image URL - same as ProductCard component
+  const getProductImageUrl = (item) => {
+    // Use the same logic as ProductCard: product.images?.[0] first, then fallback
+    const imageUrl = item.images?.[0] || item.product_image || item.image
+    
+    if (!imageUrl) {
+      // Create a simple gray placeholder since via.placeholder.com is not accessible
+      const svgPlaceholder = `data:image/svg+xml;base64,${btoa(`
+        <svg width="300" height="200" xmlns="http://www.w3.org/2000/svg">
+          <rect width="300" height="200" fill="#f3f4f6"/>
+          <text x="150" y="105" font-family="Arial, sans-serif" font-size="16" fill="#9ca3af" text-anchor="middle">Product Image</text>
+        </svg>
+      `)}`
+      return svgPlaceholder
+    }
+
+    // If it's a relative URL, make it absolute (assuming it's from the backend)
+    if (imageUrl.startsWith('/')) {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+      return baseUrl.replace('/api', '') + imageUrl
+    }
+
+    return imageUrl
+  }
 
   // All useState hooks must be called before any conditional returns
   const [showCheckout, setShowCheckout] = useState(false)
@@ -30,14 +55,51 @@ function WebsiteCart({ website }) {
     zipCode: ''
   })
   const [orderPlaced, setOrderPlaced] = useState(false)
+  const [checkoutLoading, setCheckoutLoading] = useState(false)
+
+  // Set website info when component mounts
+  useEffect(() => {
+    if (website) {
+      console.log('WebsiteCart: Setting website info:', {
+        slug: website.slug,
+        id: website.id,
+        name: website.name
+      })
+      setWebsiteInfo({
+        slug: website.slug,
+        id: website.id,
+        name: website.name
+      })
+    }
+  }, [website, setWebsiteInfo])
 
   // Debug logging
   console.log('WebsiteCart rendered:', {
     website: website?.name,
+    websiteSlug: website?.slug,
     cartItems: cart?.items?.length || 0,
     cartTotal: cart?.total || 0,
-    cartLoading: cart?.loading
+    cartLoading: cart?.loading,
+    cartWebsiteSlug: cart?.websiteSlug,
+    cartWebsiteName: cart?.websiteName
   })
+
+  // Debug cart items and their images
+  if (cart?.items?.length > 0) {
+    console.log('=== CART ITEMS DEBUG ===')
+    cart.items.forEach((item, index) => {
+      console.log(`Item ${index + 1}:`, {
+        name: item.product_name || item.name,
+        product_image: item.product_image,
+        images: item.images,
+        images_first: item.images?.[0],
+        final_image_url: getProductImageUrl(item),
+        fallback_used: !item.product_image && !item.images?.[0],
+        full_item: item
+      })
+    })
+    console.log('=== END DEBUG ===')
+  }
 
   // Show loading state while cart is loading
   if (cart.loading) {
@@ -75,8 +137,28 @@ function WebsiteCart({ website }) {
 
   const handleCheckout = async (e) => {
     e.preventDefault()
+    
+    // Validate required fields
+    if (!customerInfo.name || !customerInfo.email || !customerInfo.phone || 
+        !customerInfo.address || !customerInfo.city || !customerInfo.zipCode) {
+      alert('Please fill in all required fields.')
+      return
+    }
+
+    // Validate cart has items
+    if (!cart.items || cart.items.length === 0) {
+      alert('Your cart is empty.')
+      return
+    }
+
     try {
+      setCheckoutLoading(true)
+      console.log('Starting checkout with customer info:', customerInfo)
+      console.log('Cart items:', cart.items)
+      
       const order = await checkout(customerInfo)
+      console.log('Order placed successfully:', order)
+      
       setOrderPlaced(true)
       setShowCheckout(false)
 
@@ -90,8 +172,17 @@ function WebsiteCart({ website }) {
         zipCode: ''
       })
     } catch (error) {
-      console.error('Checkout error:', error)
-      alert('Error placing order. Please try again.')
+      console.error('Checkout error details:', error)
+      
+      // Show more specific error message
+      let errorMessage = 'Error placing order. Please try again.'
+      if (error.message) {
+        errorMessage = `Error: ${error.message}`
+      }
+      
+      alert(errorMessage)
+    } finally {
+      setCheckoutLoading(false)
     }
   }
 
@@ -233,12 +324,13 @@ function WebsiteCart({ website }) {
                 <Button
                   type="submit"
                   className="w-full mt-6"
+                  disabled={checkoutLoading}
                   style={{
                     backgroundColor: website.customizations.colors.primary,
                     color: 'white'
                   }}
                 >
-                  Place Order (${cart.total.toFixed(2)})
+                  {checkoutLoading ? 'Placing Order...' : `Place Order ($${cart.total.toFixed(2)})`}
                 </Button>
               </form>
             </div>
@@ -251,9 +343,19 @@ function WebsiteCart({ website }) {
                 {cart.items.map((item) => (
                   <div key={item.product_id || item.id} className="flex items-center space-x-4">
                     <img
-                      src={item.product_image || item.images?.[0] || 'https://via.placeholder.com/64x64/gray/white?text=Product'}
+                      src={getProductImageUrl(item)}
                       alt={item.product_name || item.name}
                       className="w-16 h-16 object-cover rounded"
+                      onError={(e) => {
+                        console.log('Image failed to load:', e.target.src)
+                        const svgPlaceholder = `data:image/svg+xml;base64,${btoa(`
+                          <svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="64" height="64" fill="#f3f4f6"/>
+                            <text x="32" y="36" font-family="Arial, sans-serif" font-size="10" fill="#9ca3af" text-anchor="middle">Product</text>
+                          </svg>
+                        `)}`
+                        e.target.src = svgPlaceholder
+                      }}
                     />
                     <div className="flex-1">
                       <h3 className="font-medium text-gray-900">{item.product_name || item.name}</h3>
@@ -339,9 +441,19 @@ function WebsiteCart({ website }) {
                 <div key={item.product_id || item.id} className="bg-white rounded-lg shadow-sm border p-6">
                   <div className="flex items-center space-x-4">
                     <img
-                      src={item.product_image || item.images?.[0] || 'https://via.placeholder.com/80x80/gray/white?text=Product'}
+                      src={getProductImageUrl(item)}
                       alt={item.product_name || item.name}
                       className="w-20 h-20 object-cover rounded"
+                      onError={(e) => {
+                        console.log('Image failed to load:', e.target.src)
+                        const svgPlaceholder = `data:image/svg+xml;base64,${btoa(`
+                          <svg width="80" height="80" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="80" height="80" fill="#f3f4f6"/>
+                            <text x="40" y="45" font-family="Arial, sans-serif" font-size="12" fill="#9ca3af" text-anchor="middle">Product</text>
+                          </svg>
+                        `)}`
+                        e.target.src = svgPlaceholder
+                      }}
                     />
 
                     <div className="flex-1">
@@ -403,7 +515,11 @@ function WebsiteCart({ website }) {
               </div>
 
               <Button
-                onClick={() => setShowCheckout(true)}
+                onClick={() => {
+                  console.log('Debug - Cart state:', cart)
+                  console.log('Debug - Website:', website)
+                  setShowCheckout(true)
+                }}
                 className="w-full"
                 style={{
                   backgroundColor: website.customizations.colors.primary,

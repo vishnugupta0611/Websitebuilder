@@ -116,6 +116,16 @@ export const authService = {
     }
   },
 
+  // Resend OTP
+  async resendOTP(email) {
+    try {
+      const response = await api.post('/auth/resend-otp/', { email })
+      return { success: true, data: response }
+    } catch (error) {
+      return { success: false, error: error.message }
+    }
+  },
+
   // Check if user is authenticated
   isAuthenticated() {
     return !!localStorage.getItem('authToken')

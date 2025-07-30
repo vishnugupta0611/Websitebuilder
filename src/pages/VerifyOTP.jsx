@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { authService } from '../services/authService'
 import Button from '../components/ui/Button'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
-import { Mail, ArrowLeft, RefreshCw, CheckCircle } from 'lucide-react'
+import { Mail, ArrowLeft, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react'
 
 function VerifyOTP() {
   const navigate = useNavigate()
@@ -13,6 +14,9 @@ function VerifyOTP() {
   const [otp, setOtp] = useState(['', '', '', '', '', ''])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendMessage, setResendMessage] = useState('')
+  const [resendError, setResendError] = useState('')
   const inputRefs = useRef([])
 
   // Get email and name from navigation state
@@ -106,13 +110,30 @@ function VerifyOTP() {
     setIsSubmitting(false)
   }
 
-  const handleResendOTP = () => {
-    // Simulate resend OTP
-    setResendCooldown(60)
-    console.log('OTP resent to:', email)
+  const handleResendOTP = async () => {
+    setResendLoading(true)
+    setResendError('')
+    setResendMessage('')
     
-    // Show success message
-    alert('OTP has been resent to your email address')
+    try {
+      const result = await authService.resendOTP(email)
+      
+      if (result.success) {
+        setResendMessage('New verification code sent to your email!')
+        setResendCooldown(60) // Start 60-second cooldown
+        
+        // Clear success message after 5 seconds
+        setTimeout(() => {
+          setResendMessage('')
+        }, 5000)
+      } else {
+        setResendError(result.error || 'Failed to resend code. Please try again.')
+      }
+    } catch (error) {
+      setResendError('Failed to resend code. Please try again.')
+    } finally {
+      setResendLoading(false)
+    }
   }
 
   if (loading) {
@@ -148,7 +169,8 @@ function VerifyOTP() {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Error Message */}
               {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
+                  <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
                   <p className="text-red-800 text-sm">{error}</p>
                 </div>
               )}
@@ -158,6 +180,21 @@ function VerifyOTP() {
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center">
                   <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
                   <p className="text-green-800 text-sm">Verification successful! Redirecting...</p>
+                </div>
+              )}
+
+              {/* Resend Messages */}
+              {resendMessage && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center">
+                  <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                  <p className="text-green-800 text-sm">{resendMessage}</p>
+                </div>
+              )}
+
+              {resendError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
+                  <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
+                  <p className="text-red-800 text-sm">{resendError}</p>
                 </div>
               )}
 
@@ -212,10 +249,17 @@ function VerifyOTP() {
               ) : (
                 <button
                   onClick={handleResendOTP}
-                  className="text-purple-600 hover:text-purple-500 font-medium text-sm flex items-center justify-center mx-auto"
+                  disabled={resendLoading}
+                  className="text-purple-600 hover:text-purple-500 font-medium text-sm flex items-center justify-center mx-auto disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <RefreshCw className="h-4 w-4 mr-1" />
-                  Resend Code
+                  {resendLoading ? (
+                    <LoadingSpinner size="sm" />
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                      Resend Code
+                    </>
+                  )}
                 </button>
               )}
             </div>
@@ -235,7 +279,7 @@ function VerifyOTP() {
           {/* Help Text */}
           <div className="text-center">
             <p className="text-gray-500 text-sm">
-              For demo purposes, enter any 6-digit number to verify
+              Check your email for the verification code. It may take a few minutes to arrive.
             </p>
           </div>
         </div>
