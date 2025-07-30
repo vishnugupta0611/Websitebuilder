@@ -1,7 +1,8 @@
 import React from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, useParams } from 'react-router-dom'
 import { AppProvider } from './contexts/AppContext'
 import { AuthProvider } from './contexts/AuthContext'
+import { WebsiteCartProvider } from './contexts/WebsiteCartContext'
 import Layout from './components/layout/Layout'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import Home from './pages/Home'
@@ -19,6 +20,7 @@ import UserBlogDetail from './pages/UserBlogDetail'
 import UserProductDetail from './pages/UserProductDetail'
 import GetStarted from './pages/GetStarted'
 import WebsiteCartPage from './pages/WebsiteCartPage'
+import { CustomerAuthProvider } from './contexts/CustomerAuthContext'
 import Cart from './pages/Cart'
 import Checkout from './pages/Checkout'
 import Search from './pages/Search'
@@ -28,9 +30,23 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import VerifyOTP from './pages/VerifyOTP'
 import ApiTest from './pages/ApiTest'
+import NotFound from './components/NotFound'
 
 // Import test data utility for development
 import './utils/testData'
+import CustomerOrders from './pages/CustomerOrders'
+import SavedItems from './pages/SavedItems'
+
+// Customer Auth Wrapper Component
+function CustomerAuthWrapper({ children }) {
+  const { slug } = useParams()
+  
+  return (
+    <CustomerAuthProvider websiteSlug={slug}>
+      {children}
+    </CustomerAuthProvider>
+  )
+}
 
 function App() {
   return (
@@ -58,15 +74,74 @@ function App() {
             <Route path="/orders" element={<ProtectedRoute><Layout><OrdersDashboard /></Layout></ProtectedRoute>} />
             <Route path="/api-test" element={<ProtectedRoute><Layout><ApiTest /></Layout></ProtectedRoute>} />
             
-            {/* User Website Routes - WITHOUT Layout (Independent websites) */}
-            <Route path="/:slug" element={<UserWebsite />} />
-            <Route path="/:slug/about" element={<UserAbout />} />
-            <Route path="/:slug/contact" element={<UserContact />} />
-            <Route path="/:slug/blogs" element={<UserBlogs />} />
-            <Route path="/:slug/blogs/:blogSlug" element={<UserBlogDetail />} />
-            <Route path="/:slug/products/:productId" element={<UserProductDetail />} />
-            <Route path="/:slug/getstarted" element={<GetStarted />} />
-            <Route path="/:slug/cart" element={<WebsiteCartPage />} />
+            {/* User Website Routes - WITHOUT Layout (Independent websites with Customer Auth) */}
+            <Route path="/:slug" element={
+              <CustomerAuthWrapper>
+                <UserWebsite />
+              </CustomerAuthWrapper>
+            } />
+            <Route path="/:slug/about" element={
+              <CustomerAuthWrapper>
+                <UserAbout />
+              </CustomerAuthWrapper>
+            } />
+            <Route path="/:slug/contact" element={
+              <CustomerAuthWrapper>
+                <UserContact />
+              </CustomerAuthWrapper>
+            } />
+            <Route path="/:slug/blogs" element={
+              <CustomerAuthWrapper>
+                <UserBlogs />
+              </CustomerAuthWrapper>
+            } />
+            <Route path="/:slug/blogs/:blogSlug" element={
+              <CustomerAuthWrapper>
+                <UserBlogDetail />
+              </CustomerAuthWrapper>
+            } />
+            <Route path="/:slug/products/:productId" element={
+              <CustomerAuthWrapper>
+                <UserProductDetail />
+              </CustomerAuthWrapper>
+            } />
+            <Route path="/:slug/getstarted" element={
+              <CustomerAuthWrapper>
+                <GetStarted />
+              </CustomerAuthWrapper>
+            } />
+            <Route path="/:slug/cart" element={
+              <CustomerAuthWrapper>
+                <WebsiteCartPage />
+              </CustomerAuthWrapper>
+            } />
+            <Route path="/:slug/verify-otp" element={
+              <CustomerAuthWrapper>
+                <VerifyOTP />
+              </CustomerAuthWrapper>
+            } />
+            <Route path="/:slug/profile" element={
+              <CustomerAuthWrapper>
+               <CustomerProfile/>
+              </CustomerAuthWrapper>
+            } />
+            <Route path="/:slug/orders" element={
+              <CustomerAuthWrapper>
+               <CustomerOrders/>
+              </CustomerAuthWrapper>
+            } />
+            <Route path="/:slug/saved-items" element={
+              <CustomerAuthWrapper>
+                <WebsiteCartProvider>
+               <SavedItems/>
+               </WebsiteCartProvider>
+              </CustomerAuthWrapper>
+            } />
+            {/* Catch-all route for 404 errors */}
+            <Route path="*" element={<NotFound />} />
+            
+            {/* Catch-all route for 404 */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </Router>
       </AppProvider>

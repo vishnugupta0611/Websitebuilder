@@ -32,6 +32,16 @@ export const productService = {
     }
   },
 
+  // Get single product for public access (subsite)
+  async getPublicProduct(id) {
+    try {
+      const response = await api.get(`/products/${id}/public_detail/`)
+      return { success: true, data: response }
+    } catch (error) {
+      return { success: false, error: error.message }
+    }
+  },
+
   // Create new product
   async createProduct(productData) {
     try {

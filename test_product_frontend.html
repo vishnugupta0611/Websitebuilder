@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Page Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .info { color: #17a2b8; }
+        .warning { color: #ffc107; }
+        .code {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 10px 0;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .test-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .test-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Product Page Test</h1>
+    
+    <div class="section">
+        <h2>❌ Current Issue</h2>
+        <p class="error">You're trying to access: <code>localhost:3000/www/products/Awe</code></p>
+        <p>This URL has two problems:</p>
+        <ul>
+            <li><strong>Website slug "www" doesn't exist</strong> - No website with this slug</li>
+            <li><strong>Product ID "Awe" is invalid</strong> - Product IDs must be numbers</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>✅ Available Websites</h2>
+        <div id="websites-list">Loading...</div>
+        <button onclick="loadWebsites()">Refresh Websites</button>
+    </div>
+
+    <div class="section">
+        <h2>🔧 Test Backend Endpoints</h2>
+        <button onclick="testProductEndpoint()">Test Product Endpoint</button>
+        <button onclick="testWebsiteEndpoint()">Test Website Endpoint</button>
+        <div id="test-results"></div>
+    </div>
+
+    <div class="section">
+        <h2>🚀 Quick Fix</h2>
+        <p class="info">Use one of these working URLs:</p>
+        <div id="working-urls">
+            <div class="code">
+                <a href="http://localhost:3000/test-backend-website/products/1" target="_blank">
+                    http://localhost:3000/test-backend-website/products/1
+                </a>
+            </div>
+        </div>
+        <button onclick="generateWorkingUrls()">Generate Working URLs</button>
+    </div>
+
+    <script>
+        const API_BASE = 'http://127.0.0.1:8000/api';
+        
+        async function loadWebsites() {
+            const websitesDiv = document.getElementById('websites-list');
+            websitesDiv.innerHTML = 'Loading...';
+            
+            try {
+                // First login to get token
+                const loginResponse = await fetch(`${API_BASE}/auth/login/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'backend_test@example.com',
+                        password: 'testpass123'
+                    })
+                });
+                
+                if (!loginResponse.ok) {
+                    throw new Error('Login failed');
+                }
+                
+                const loginData = await loginResponse.json();
+                const token = loginData.tokens.access;
+                
+                // Get websites
+                const websitesResponse = await fetch(`${API_BASE}/websites/`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (!websitesResponse.ok) {
+                    throw new Error('Failed to fetch websites');
+                }
+                
+                const websitesData = await websitesResponse.json();
+                const websites = websitesData.results || websitesData;
+                
+                let html = '<ul>';
+                websites.forEach(website => {
+                    html += `<li><strong>${website.name}</strong> (slug: <code>${website.slug}</code>, status: ${website.status})</li>`;
+                });
+                html += '</ul>';
+                
+                websitesDiv.innerHTML = html;
+                
+            } catch (error) {
+                websitesDiv.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+            }
+        }
+        
+        async function testProductEndpoint() {
+            const resultsDiv = document.getElementById('test-results');
+            
+            try {
+                const response = await fetch(`${API_BASE}/products/1/public_detail/`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultsDiv.innerHTML += `
+                        <div class="test-result test-success">
+                            ✅ Product endpoint works!<br>
+                            Product: ${data.name}<br>
+                            Price: $${data.price}<br>
+                            Status: ${data.status}
+                        </div>
+                    `;
+                } else {
+                    resultsDiv.innerHTML += `
+                        <div class="test-result test-error">
+                            ❌ Product endpoint failed: ${data.error || 'Unknown error'}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML += `
+                    <div class="test-result test-error">
+                        ❌ Product endpoint error: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        async function testWebsiteEndpoint() {
+            const resultsDiv = document.getElementById('test-results');
+            
+            try {
+                const response = await fetch(`${API_BASE}/websites/by_slug/?slug=test-backend-website`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultsDiv.innerHTML += `
+                        <div class="test-result test-success">
+                            ✅ Website endpoint works!<br>
+                            Website: ${data.name}<br>
+                            Slug: ${data.slug}<br>
+                            Status: ${data.status}
+                        </div>
+                    `;
+                } else {
+                    resultsDiv.innerHTML += `
+                        <div class="test-result test-error">
+                            ❌ Website endpoint failed: ${data.error || 'Unknown error'}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML += `
+                    <div class="test-result test-error">
+                        ❌ Website endpoint error: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        async function generateWorkingUrls() {
+            const urlsDiv = document.getElementById('working-urls');
+            
+            try {
+                // Login and get data
+                const loginResponse = await fetch(`${API_BASE}/auth/login/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'backend_test@example.com',
+                        password: 'testpass123'
+                    })
+                });
+                
+                const loginData = await loginResponse.json();
+                const token = loginData.tokens.access;
+                
+                // Get websites
+                const websitesResponse = await fetch(`${API_BASE}/websites/`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const websitesData = await websitesResponse.json();
+                const websites = websitesData.results || websitesData;
+                
+                let html = '<h3>Working Product URLs:</h3>';
+                
+                for (const website of websites) {
+                    if (website.status === 'published') {
+                        // Get products for this website
+                        const productsResponse = await fetch(`${API_BASE}/products/?website=${website.id}`, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        const productsData = await productsResponse.json();
+                        const products = productsData.results || productsData;
+                        
+                        if (products && products.length > 0) {
+                            html += `<h4>${website.name} (${website.slug})</h4><ul>`;
+                            products.forEach(product => {
+                                if (product.status === 'active') {
+                                    const url = `http://localhost:3000/${website.slug}/products/${product.id}`;
+                                    html += `<li><a href="${url}" target="_blank">${product.name} - ${url}</a></li>`;
+                                }
+                            });
+                            html += '</ul>';
+                        }
+                    }
+                }
+                
+                urlsDiv.innerHTML = html;
+                
+            } catch (error) {
+                urlsDiv.innerHTML = `<p class="error">Error generating URLs: ${error.message}</p>`;
+            }
+        }
+        
+        // Load websites on page load
+        loadWebsites();
+    </script>
+</body>
+</html>

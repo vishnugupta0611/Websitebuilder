@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useApp } from '../contexts/AppContext'
 import { WebsiteCartProvider, useWebsiteCart } from '../contexts/WebsiteCartContext'
+import { useCustomerAuth } from '../contexts/CustomerAuthContext'
 import Button from '../components/ui/Button'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import TemplateRenderer from '../components/templates/TemplateRenderer'
@@ -47,8 +48,9 @@ function WebsiteCartIcon({ website, slug }) {
 
 function UserWebsiteContent() {
   const { slug } = useParams()
-  const { state, dispatch } = useApp()
+  const { dispatch } = useApp()
   const { setWebsiteInfo, addToCart } = useWebsiteCart()
+  const { isAuthenticated, user, logout } = useCustomerAuth()
   const [website, setWebsite] = useState(null)
   const [products, setProducts] = useState([])
   const [blogs, setBlogs] = useState([])
@@ -378,20 +380,77 @@ function UserWebsiteContent() {
               </Link>
             </nav>
 
-            {/* Cart and Get Started */}
+            {/* Cart and Authentication */}
             <div className="flex items-center space-x-4">
               <WebsiteCartIcon website={website} slug={slug} />
-              <Button
-                as={Link}
-                to={`/${slug}/getstarted`}
-                style={{
-                  backgroundColor: website.customizations.colors.primary,
-                  color: 'white'
-                }}
-                className="hover:opacity-90 transition-opacity"
-              >
-                Get Started
-              </Button>
+              
+              {isAuthenticated ? (
+                <div className="flex items-center space-x-3">
+                  <span 
+                    className="text-sm font-medium"
+                    style={{ color: website.customizations.colors.text }}
+                  >
+                    Welcome, {user?.firstName || user?.email}
+                  </span>
+                  <div className="relative group">
+                    <button
+                      className="flex items-center space-x-1 px-3 py-2 rounded-md hover:opacity-75 transition-opacity"
+                      style={{ 
+                        backgroundColor: website.customizations.colors.secondary + '20',
+                        color: website.customizations.colors.text
+                      }}
+                    >
+                      <span className="text-sm">Account</span>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    
+                    {/* Dropdown Menu */}
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                      <div className="py-1">
+                        <Link
+                          to={`/${slug}/profile`}
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          My Profile
+                        </Link>
+                        <Link
+                          to={`/${slug}/orders`}
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          My Orders
+                        </Link>
+                        <Link
+                          to={`/${slug}/saved-items`}
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          Saved Items
+                        </Link>
+                        <hr className="my-1" />
+                        <button
+                          onClick={logout}
+                          className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                        >
+                          Sign Out
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  as={Link}
+                  to={`/${slug}/getstarted`}
+                  style={{
+                    backgroundColor: website.customizations.colors.primary,
+                    color: 'white'
+                  }}
+                  className="hover:opacity-90 transition-opacity"
+                >
+                  Sign In / Join
+                </Button>
+              )}
             </div>
           </div>
         </div>

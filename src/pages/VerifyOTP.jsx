@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { Link, useNavigate, useLocation, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useCustomerAuth } from '../contexts/CustomerAuthContext'
 import { authService } from '../services/authService'
+import { websiteService } from '../services/websiteService'
 import Button from '../components/ui/Button'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { Mail, ArrowLeft, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react'
@@ -9,8 +11,19 @@ import { Mail, ArrowLeft, RefreshCw, CheckCircle, AlertCircle } from 'lucide-rea
 function VerifyOTP() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { verifyOTP, loading, error, clearError } = useAuth()
+  const { slug } = useParams()
   
+  // Determine if this is customer or corporate verification
+  const isCustomerVerification = !!slug
+  
+  // Use appropriate auth context
+  const corporateAuth = useAuth()
+  const customerAuth = useCustomerAuth()
+  
+  const authContext = isCustomerVerification ? customerAuth : corporateAuth
+  const { verifyOTP, loading, error, clearError } = authContext
+  
+  const [website, setWebsite] = useState(null)
   const [otp, setOtp] = useState(['', '', '', '', '', ''])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0)
@@ -19,14 +32,37 @@ function VerifyOTP() {
   const [resendError, setResendError] = useState('')
   const inputRefs = useRef([])
 
-  // Get email and name from navigation state
-  const email = location.state?.email
+  // Get email from URL params or navigation state
+  const urlParams = new URLSearchParams(location.search)
+  const email = urlParams.get('email') || location.state?.email
   const name = location.state?.name
+
+  // Load website data for customer verification
+  useEffect(() => {
+    if (isCustomerVerification && slug) {
+      loadWebsiteData()
+    }
+  }, [slug, isCustomerVerification])
+
+  const loadWebsiteData = async () => {
+    try {
+      const result = await websiteService.getWebsiteBySlug(slug)
+      if (result.success) {
+        setWebsite(result.data)
+      }
+    } catch (error) {
+      console.error('Error loading website:', error)
+    }
+  }
 
   // Redirect if no email provided
   useEffect(() => {
     if (!email) {
-      navigate('/signup')
+      if (isCustomerVerification) {
+        navigate(`/${slug}/getstarted`)
+      } else {
+        navigate('/signup')
+      }
     }
   }, [email, navigate])
 
@@ -103,7 +139,13 @@ function VerifyOTP() {
     if (result.success) {
       // Show success message briefly then redirect
       setTimeout(() => {
-        navigate('/')
+        if (isCustomerVerification) {
+          // Redirect to website homepage for customer verification
+          navigate(`/${slug}`)
+        } else {
+          // Redirect to corporate dashboard
+          navigate('/')
+        }
       }, 1500)
     }
     
@@ -138,28 +180,61 @@ function VerifyOTP() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-indigo-50">
+      <div 
+        className="min-h-screen flex items-center justify-center"
+        style={{
+          backgroundColor: isCustomerVerification && website 
+            ? website.customizations?.colors?.background || '#ffffff'
+            : '#f8fafc',
+          backgroundImage: isCustomerVerification 
+            ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(255, 255, 255, 1) 100%)'
+            : 'linear-gradient(135deg, rgba(147, 51, 234, 0.1) 0%, rgba(255, 255, 255, 1) 50%, rgba(79, 70, 229, 0.1) 100%)'
+        }}
+      >
         <LoadingSpinner size="lg" />
       </div>
     )
   }
 
+  const primaryColor = isCustomerVerification && website 
+    ? website.customizations?.colors?.primary || '#3b82f6'
+    : '#7c3aed'
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50">
+    <div 
+      className="min-h-screen"
+      style={{
+        backgroundColor: isCustomerVerification && website 
+          ? website.customizations?.colors?.background || '#ffffff'
+          : '#f8fafc',
+        backgroundImage: isCustomerVerification 
+          ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(255, 255, 255, 1) 100%)'
+          : 'linear-gradient(135deg, rgba(147, 51, 234, 0.1) 0%, rgba(255, 255, 255, 1) 50%, rgba(79, 70, 229, 0.1) 100%)'
+      }}
+    >
       <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
           {/* Header */}
           <div className="text-center">
-            <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-indigo-700 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+            <div 
+              className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg"
+              style={{ 
+                backgroundColor: primaryColor,
+                backgroundImage: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 100%)`
+              }}
+            >
               <Mail className="h-8 w-8 text-white" />
             </div>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
               Verify Your Email
             </h2>
             <p className="text-gray-600 mb-2">
-              We've sent a 6-digit code to
+              {isCustomerVerification && website 
+                ? `Complete your ${website.name} account setup`
+                : 'We\'ve sent a 6-digit code to'
+              }
             </p>
-            <p className="text-purple-600 font-semibold">
+            <p className="font-semibold" style={{ color: primaryColor }}>
               {email}
             </p>
           </div>
@@ -227,7 +302,8 @@ function VerifyOTP() {
               <Button
                 type="submit"
                 disabled={isSubmitting || otp.join('').length !== 6}
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 text-lg font-semibold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full text-white py-3 text-lg font-semibold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: primaryColor }}
               >
                 {isSubmitting ? (
                   <LoadingSpinner size="sm" />
@@ -250,7 +326,8 @@ function VerifyOTP() {
                 <button
                   onClick={handleResendOTP}
                   disabled={resendLoading}
-                  className="text-purple-600 hover:text-purple-500 font-medium text-sm flex items-center justify-center mx-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="font-medium text-sm flex items-center justify-center mx-auto disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-75"
+                  style={{ color: primaryColor }}
                 >
                   {resendLoading ? (
                     <LoadingSpinner size="sm" />
@@ -267,11 +344,11 @@ function VerifyOTP() {
             {/* Back to Signup */}
             <div className="mt-6 text-center">
               <Link
-                to="/signup"
+                to={isCustomerVerification ? `/${slug}/getstarted` : '/signup'}
                 className="text-gray-600 hover:text-gray-900 text-sm flex items-center justify-center"
               >
                 <ArrowLeft className="h-4 w-4 mr-1" />
-                Back to Sign Up
+                {isCustomerVerification ? `Back to ${website?.name || 'Website'}` : 'Back to Sign Up'}
               </Link>
             </div>
           </div>

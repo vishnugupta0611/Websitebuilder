@@ -159,7 +159,7 @@ function HeroProductsTemplate({ website, products, blogs, onAddToCart }) {
             onClick={() =>
               document
                 .getElementById("products")
-                .scrollIntoView({ behavior: "smooth" })
+                ?.scrollIntoView({ behavior: "smooth" })
             }
           >
             {templateContent.heroButtonText || "Shop Now"}
@@ -341,6 +341,20 @@ function ProductsBlogsComboTemplate({ website, products, blogs, onAddToCart }) {
           <p className="text-xl md:text-2xl mb-8 text-white drop-shadow-md">
             {templateContent.heroDescription || website.description}
           </p>
+          <Button
+            size="lg"
+            style={{
+              backgroundColor: customizations.colors.primary,
+              color: "white",
+            }}
+            onClick={() =>
+              document
+                .getElementById("products")
+                ?.scrollIntoView({ behavior: "smooth" })
+            }
+          >
+            {templateContent.heroButtonText || "Shop Now"}
+          </Button>
         </div>
       </section>
 
@@ -557,11 +571,25 @@ function BlogFocusedTemplate({ website, products, blogs, onAddToCart }) {
           >
             {templateContent.heroDescription || website.description}
           </p>
+          <Button
+            size="lg"
+            style={{
+              backgroundColor: customizations.colors.primary,
+              color: "white",
+            }}
+            onClick={() =>
+              document
+                .getElementById("blogs")
+                ?.scrollIntoView({ behavior: "smooth" })
+            }
+          >
+            {templateContent.heroButtonText || "Read More"}
+          </Button>
         </div>
       </section>
 
       {/* Featured Blogs */}
-      <section className="py-16">
+      <section id="blogs" className="py-16">
         <div className="max-w-7xl mx-auto px-4">
           <h2
             className="text-3xl font-bold text-center mb-12"
@@ -682,17 +710,32 @@ function MinimalCleanTemplate({ website, products, blogs, onAddToCart }) {
             {templateContent.heroTitle || website.name}
           </h1>
           <p
-            className="text-2xl font-light"
+            className="text-2xl font-light mb-8"
             style={{ color: customizations.colors.text }}
           >
             {templateContent.heroDescription || website.description}
           </p>
+          <Button
+            size="lg"
+            variant="outline"
+            style={{
+              borderColor: customizations.colors.primary,
+              color: customizations.colors.primary,
+            }}
+            onClick={() =>
+              document
+                .getElementById("products")
+                ?.scrollIntoView({ behavior: "smooth" })
+            }
+          >
+            {templateContent.heroButtonText || "Explore"}
+          </Button>
         </div>
       </section>
 
       {/* Minimal Products Grid */}
       {products.length > 0 && (
-        <section className="py-16">
+        <section id="products" className="py-16">
           <div className="max-w-6xl mx-auto px-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
               {products.slice(0, 6).map((product) => (
@@ -753,7 +796,7 @@ function DefaultTemplate({ website, products, blogs, onAddToCart }) {
 function ProductCard({ product, website, onAddToCart }) {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
-      <Link to={`/${website.slug}/products/${product.slug || product.id}`}>
+      <Link to={`/${website.slug}/products/${product.id}`}>
         <img
           src={
             product.images?.[0] ||
@@ -764,7 +807,7 @@ function ProductCard({ product, website, onAddToCart }) {
         />
       </Link>
       <div className="p-4">
-        <Link to={`/${website.slug}/products/${product.slug || product.id}`}>
+        <Link to={`/${website.slug}/products/${product.id}`}>
           <h3
             className="font-semibold mb-2 hover:underline"
             style={{ color: website.customizations.colors.text }}
