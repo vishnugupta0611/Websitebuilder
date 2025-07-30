@@ -4,40 +4,20 @@ import { useApp } from '../contexts/AppContext'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
+import WebsiteHeader from '../components/website/WebsiteHeader'
 import {
   ArrowLeft,
   Mail,
   Phone,
   MapPin,
   Send,
-  ShoppingCart,
   Clock,
   MessageCircle
 } from 'lucide-react'
 import { WebsiteCartProvider, useWebsiteCart } from '../contexts/WebsiteCartContext'
+import { CustomerAuthProvider } from '../contexts/CustomerAuthContext'
 
-// Cart Icon Component
-function WebsiteCartIcon({ website, slug }) {
-  const { cart } = useWebsiteCart()
 
-  return (
-    <Link
-      to={`/${slug}/cart`}
-      className="relative p-2 hover:opacity-75 transition-opacity mr-4"
-      style={{ color: website.customizations.colors.primary }}
-    >
-      <ShoppingCart className="h-6 w-6" />
-      {cart.items.length > 0 && (
-        <span
-          className="absolute -top-1 -right-1 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
-          style={{ backgroundColor: website.customizations.colors.accent }}
-        >
-          {cart.items.reduce((total, item) => total + item.quantity, 0)}
-        </span>
-      )}
-    </Link>
-  )
-}
 
 function UserContactContent() {
   const { slug } = useParams()
@@ -153,77 +133,7 @@ function UserContactContent() {
       }}
     >
       {/* Header */}
-      <header
-        className="border-b shadow-sm"
-        style={{
-          backgroundColor: website.customizations.colors.background,
-          borderColor: website.customizations.colors.secondary + '20'
-        }}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link
-              to={`/${slug}`}
-              className="flex items-center hover:opacity-75 transition-opacity"
-              style={{ color: website.customizations.colors.primary }}
-            >
-              <h1
-                className="text-2xl font-bold"
-                style={{ fontFamily: website.customizations.typography.headingFont }}
-              >
-                {website.name}
-              </h1>
-            </Link>
-
-            {/* Navigation */}
-            <nav className="hidden md:flex space-x-8">
-              <Link
-                to={`/${slug}`}
-                className="hover:opacity-75 transition-opacity"
-                style={{ color: website.customizations.colors.text }}
-              >
-                Home
-              </Link>
-              <Link
-                to={`/${slug}/about`}
-                className="hover:opacity-75 transition-opacity"
-                style={{ color: website.customizations.colors.text }}
-              >
-                About
-              </Link>
-              <Link
-                to={`/${slug}/blogs`}
-                className="hover:opacity-75 transition-opacity"
-                style={{ color: website.customizations.colors.text }}
-              >
-                Blogs
-              </Link>
-              <Link
-                to={`/${slug}/contact`}
-                className="hover:opacity-75 transition-opacity font-semibold"
-                style={{ color: website.customizations.colors.primary }}
-              >
-                Contact
-              </Link>
-            </nav>
-
-            <div className="flex items-center space-x-4">
-              <WebsiteCartIcon website={website} slug={slug} />
-              <Button
-                as={Link}
-                to={`/${slug}/getstarted`}
-                style={{
-                  backgroundColor: website.customizations.colors.primary,
-                  color: 'white'
-                }}
-                className="hover:opacity-90 transition-opacity"
-              >
-                Get Started
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <WebsiteHeader website={website} slug={slug} currentPage="contact" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
@@ -508,14 +418,16 @@ function UserContactContent() {
   )
 }
 
-// Main UserContact component with cart provider
+// Main UserContact component with cart and customer auth providers
 function UserContact() {
   const { slug } = useParams()
 
   return (
-    <WebsiteCartProvider websiteSlug={slug}>
-      <UserContactContent />
-    </WebsiteCartProvider>
+    <CustomerAuthProvider websiteSlug={slug}>
+      <WebsiteCartProvider websiteSlug={slug}>
+        <UserContactContent />
+      </WebsiteCartProvider>
+    </CustomerAuthProvider>
   )
 }
 

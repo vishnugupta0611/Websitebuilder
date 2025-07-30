@@ -1,10 +1,20 @@
 import api from './api'
 
 export const orderService = {
-  // Get user orders
+  // Get user orders (for website owners)
   async getOrders() {
     try {
       const response = await api.get('/orders/')
+      return { success: true, data: response.results || response }
+    } catch (error) {
+      return { success: false, error: error.message }
+    }
+  },
+
+  // Get customer orders by email and website slug
+  async getCustomerOrders(customerEmail, websiteSlug) {
+    try {
+      const response = await api.get(`/orders/customer_orders/?email=${encodeURIComponent(customerEmail)}&website_slug=${encodeURIComponent(websiteSlug)}`)
       return { success: true, data: response.results || response }
     } catch (error) {
       return { success: false, error: error.message }
