@@ -85,10 +85,10 @@ function UserWebsiteContent() {
         }
         
         // Ensure template object exists with proper structure
-        if (!websiteData.template) {
+        if (!websiteData.template || !websiteData.template.id) {
           websiteData.template = {
-            id: websiteData.template_id || 'default',
-            name: websiteData.template_name || 'Default Template',
+            id: websiteData.template_id || 'hero-products',
+            name: websiteData.template_name || 'Hero with Products',
             metadata: websiteData.template_metadata || {}
           }
         }

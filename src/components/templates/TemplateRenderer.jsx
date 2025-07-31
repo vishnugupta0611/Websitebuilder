@@ -6,7 +6,15 @@ import { ArrowRight, ShoppingCart, Calendar, ShoppingBag } from "lucide-react";
 function TemplateRenderer({ website, products, blogs, onAddToCart }) {
   const { template } = website;
 
-  if (!template || !template.id) {
+  // Debug logging for template selection
+  console.log('🎨 TemplateRenderer Debug:');
+  console.log('- Website template object:', template);
+  console.log('- Template ID:', template?.id);
+  console.log('- Template name:', template?.name);
+  console.log('- Template metadata:', template?.metadata);
+
+  if (!template || !template.id || template.id === 'default') {
+    console.log('⚠️ Using DefaultTemplate - no valid template ID found');
     return (
       <DefaultTemplate
         website={website}
@@ -17,8 +25,11 @@ function TemplateRenderer({ website, products, blogs, onAddToCart }) {
     );
   }
 
+  console.log(`✅ Rendering template: ${template.id}`);
+
   switch (template.id) {
     case "hero-products":
+      console.log('🎯 Rendering HeroProductsTemplate');
       return (
         <HeroProductsTemplate
           website={website}
@@ -28,6 +39,7 @@ function TemplateRenderer({ website, products, blogs, onAddToCart }) {
         />
       );
     case "text-image-split":
+      console.log('🎯 Rendering TextImageSplitTemplate');
       return (
         <TextImageSplitTemplate
           website={website}
@@ -37,6 +49,7 @@ function TemplateRenderer({ website, products, blogs, onAddToCart }) {
         />
       );
     case "blog-focused":
+      console.log('🎯 Rendering BlogFocusedTemplate');
       return (
         <BlogFocusedTemplate
           website={website}
@@ -46,6 +59,7 @@ function TemplateRenderer({ website, products, blogs, onAddToCart }) {
         />
       );
     case "products-blogs-combo":
+      console.log('🎯 Rendering ProductsBlogsComboTemplate');
       return (
         <ProductsBlogsComboTemplate
           website={website}
@@ -55,6 +69,7 @@ function TemplateRenderer({ website, products, blogs, onAddToCart }) {
         />
       );
     case "image-left-content":
+      console.log('🎯 Rendering ImageLeftContentTemplate');
       return (
         <ImageLeftContentTemplate
           website={website}
@@ -64,6 +79,7 @@ function TemplateRenderer({ website, products, blogs, onAddToCart }) {
         />
       );
     case "minimal-clean":
+      console.log('🎯 Rendering MinimalCleanTemplate');
       return (
         <MinimalCleanTemplate
           website={website}
@@ -73,6 +89,7 @@ function TemplateRenderer({ website, products, blogs, onAddToCart }) {
         />
       );
     default:
+      console.log(`⚠️ Unknown template ID: ${template.id}, using DefaultTemplate`);
       return (
         <DefaultTemplate
           website={website}

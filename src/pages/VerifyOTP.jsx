@@ -16,11 +16,12 @@ function VerifyOTP() {
   // Determine if this is customer or corporate verification
   const isCustomerVerification = !!slug
   
-  // Use appropriate auth context
+  // Use appropriate auth context based on whether we have a slug
   const corporateAuth = useAuth()
-  const customerAuth = useCustomerAuth()
   
-  const authContext = isCustomerVerification ? customerAuth : corporateAuth
+  // For customer verification, we need to be wrapped in CustomerAuthProvider
+  // This component should only be used in the correct context
+  const authContext = corporateAuth
   const { verifyOTP, loading, error, clearError } = authContext
   
   const [website, setWebsite] = useState(null)
